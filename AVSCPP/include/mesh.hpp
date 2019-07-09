@@ -1,7 +1,7 @@
 #pragma once
 
 // System Headers
-#include <assimp/importer.hpp>
+#include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <glad/glad.h>
@@ -13,7 +13,7 @@
 #include <vector>
 
 // Define Namespace
-namespace Mirage
+namespace AVSCPP
 {
     // Vertex Format
     struct Vertex {
@@ -64,4 +64,4 @@ namespace Mirage
         GLuint mElementBuffer;
 
     };
-};
+}

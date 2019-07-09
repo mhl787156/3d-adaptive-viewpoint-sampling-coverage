@@ -9,7 +9,7 @@
 #include <string>
 
 // Define Namespace
-namespace Mirage
+namespace AVSCPP
 {
     class Shader
     {
@@ -49,4 +49,4 @@ namespace Mirage
         GLint  mLength;
 
     };
-};
+}

@@ -1,6 +1,6 @@
 // Preprocessor Directives
-#ifndef GLITTER
-#define GLITTER
+#ifndef AVSCPP_H
+#define AVSCPP_H
 #pragma once
 
 // System Headers
@@ -21,4 +21,4 @@
 const int mWidth = 1280;
 const int mHeight = 800;
 
-#endif //~ Glitter Header
+#endif // ~AVS_CPP Header

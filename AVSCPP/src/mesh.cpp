@@ -8,14 +8,14 @@
 #include <stb_image.h>
 
 // Define Namespace
-namespace Mirage
+namespace AVSCPP
 {
     Mesh::Mesh(std::string const & filename) : Mesh()
     {
         // Load a Model from File
         Assimp::Importer loader;
         aiScene const * scene = loader.ReadFile(
-            PROJECT_SOURCE_DIR "/Mirage/Models/" + filename,
+            filename,
             aiProcessPreset_TargetRealtime_MaxQuality |
             aiProcess_OptimizeGraph                   |
             aiProcess_FlipUVs);

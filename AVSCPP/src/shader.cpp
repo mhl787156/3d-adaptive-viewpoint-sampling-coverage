@@ -7,7 +7,7 @@
 #include <memory>
 
 // Define Namespace
-namespace Mirage
+namespace AVSCPP
 {
     Shader & Shader::activate()
     {
@@ -22,8 +22,7 @@ namespace Mirage
     Shader & Shader::attach(std::string const & filename)
     {
         // Load GLSL Shader Source from File
-        std::string path = PROJECT_SOURCE_DIR "/Mirage/Shaders/";
-        std::ifstream fd(path + filename);
+        std::ifstream fd(filename);
         auto src = std::string(std::istreambuf_iterator<char>(fd),
                               (std::istreambuf_iterator<char>()));
 

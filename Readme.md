@@ -8,9 +8,8 @@ Glitter is a dead simple boilerplate for OpenGL, intended as a starting point fo
 Glitter has a single dependency: [cmake](http://www.cmake.org/download/), which is used to generate platform-specific makefiles or project files. Start by cloning this repository, making sure to pass the `--recursive` flag to grab all the dependencies. If you forgot, then you can `git submodule update --init` instead.
 
 ```bash
-git clone --recursive https://github.com/Polytonic/Glitter
-cd Glitter
-cd Build
+git clone --recursive https://caidin.brl.ac.uk/mh2-li/3d-adaptive-viewpoint-sampling-coverage.git
+mkdir build && cd build
 ```
 
 Now generate a project file or makefile for your platform. If you want to use a particular IDE, make sure it is installed; don't forget to set the Start-Up Project in Visual Studio or the Target in Xcode.
@@ -18,6 +17,7 @@ Now generate a project file or makefile for your platform. If you want to use a 
 ```bash
 # UNIX Makefile
 cmake ..
+make -j<num_cores>
 
 # Mac OSX
 cmake -G "Xcode" ..
