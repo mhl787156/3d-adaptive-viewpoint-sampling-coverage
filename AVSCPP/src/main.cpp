@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 // Standard Headers
 #include <cstdio>
@@ -55,7 +56,6 @@ int main(int argc, char * argv[]) {
 	glEnable(GL_CULL_FACE);
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
-
     // Create and compile our GLSL program from the shaders
     std::string shaderPath = PROJECT_SOURCE_DIR "/AVSCPP/shaders/";
     AVSCPP::Shader shader;
@@ -66,6 +66,25 @@ int main(int argc, char * argv[]) {
 
     // Create Model-View-Projection Matrix:
     AVSCPP::CameraControl camera(mWindow);
+
+    GLuint modelSize = modelPoints.getSize();
+
+    // Initialise Shader Storage Buffer Object
+    glm::vec4 shader_data[modelSize];
+    GLuint ssbo;
+    glGenBuffers(1, &ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, modelSize*sizeof(shader_data), shader_data, GL_DYNAMIC_COPY);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssbo);
+    // Read from sso
+    GLuint block_index = 0;
+    block_index = glGetProgramResourceIndex(shader.get(), GL_SHADER_STORAGE_BLOCK, "shader_data");
+    GLuint ssbo_binding_point_index = 3;
+    glShaderStorageBlockBinding(shader.get(), block_index, ssbo_binding_point_index);
+    
+    camera.setViewMatrix(glm::lookAt(
+                glm::vec3(50, 50, 50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)
+            ));
 
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false) {
@@ -103,7 +122,22 @@ int main(int argc, char * argv[]) {
         // Flip Buffers and Draw
         glfwSwapBuffers(mWindow);
         glfwPollEvents();
+
+        break;
     }   
+    
+    
+    for (unsigned int i = 0; i < modelSize; i++) {
+        glm::vec4 out;
+        glNamedBufferSubData(ssbo, i * sizeof(glm::vec4), sizeof(glm::vec4), &out);
+        printf("%s\n", glm::to_string(out).c_str());
+
+    }
+
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind sso
+
+
 
     // glfwTerminate(); // Causes segfault on my machine? 
 

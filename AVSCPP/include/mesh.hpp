@@ -39,6 +39,13 @@ namespace AVSCPP
         // Public Member Functions
         void draw(GLuint shader);
 
+        GLuint getSize() { // Recursively compute size
+            GLuint size = mIndices.size();
+            for (auto &i : mSubMeshes) {
+                size = size + i->getSize();
+            }
+            return size;
+        }
     private:
 
         // Disable Copying and Assignment
@@ -46,7 +53,7 @@ namespace AVSCPP
         Mesh & operator=(Mesh const &) = delete;
 
         // Private Member Functions
-        void parse(std::string const & path, aiNode const * node, aiScene const * scene);
+        void parse(std::string const & path50, aiNode const * node, aiScene const * scene);
         void parse(std::string const & path, aiMesh const * mesh, aiScene const * scene);
         std::map<GLuint, std::string> process(std::string const & path,
                                               aiMaterial * material,
