@@ -14,6 +14,7 @@
 // Local Library Headers
 #include "shader.hpp"
 #include "mesh.hpp"
+#include "controls.hpp"
 
 int main(int argc, char * argv[]) {
 
@@ -38,13 +39,13 @@ int main(int argc, char * argv[]) {
     fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
 
     // Read in .obj filec
-    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane.obj";
+    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/cube.obj";
     AVSCPP::Mesh modelPoints(modelPath);
 
     // Initialise VAO
-    GLuint VertexArrayID;
-	glGenVertexArrays(1, &VertexArrayID);
-	glBindVertexArray(VertexArrayID);
+    GLuint VertexArrayObject;
+	glGenVertexArrays(1, &VertexArrayObject);
+	glBindVertexArray(VertexArrayObject);
 
     // Enable depth test
 	// glEnable(GL_DEPTH_TEST);
@@ -52,34 +53,46 @@ int main(int argc, char * argv[]) {
 	// glDepthFunc(GL_LESS); 
 	// Cull triangles which normal is not towards the camera
 	glEnable(GL_CULL_FACE);
+    glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+
 
     // Create and compile our GLSL program from the shaders
     std::string shaderPath = PROJECT_SOURCE_DIR "/AVSCPP/shaders/";
     AVSCPP::Shader shader;
     shader.attach(shaderPath+"simplevertexshader.vert")
+          .attach(shaderPath+"simplegeometryshader.geom")
           .attach(shaderPath+"simplefragmentshader.frag")
           .link();
 
-    // Activate Shader
-    shader.activate(); // glUseProgram
-
     // Create Model-View-Projection Matrix:
-    glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
-    glm::mat4 View       = glm::lookAt(
-								glm::vec3(0,50,50), // Camera is at (4,3,3), in World Space
-								glm::vec3(0,0,0), // and looks at the origin
-								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
-						   );
-    glm::mat4 Model      = glm::mat4(1.0f);
-    glm::mat4 MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
+    AVSCPP::CameraControl camera(mWindow);
 
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false) {
         if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(mWindow, true);
 
+        if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS)
+            camera.toggleControl();
+
+        if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS)
+            camera.resetView();
+
+        if (glfwGetKey(mWindow, GLFW_KEY_S) == GLFW_PRESS)
+            camera.setViewMatrix(glm::lookAt(
+                glm::vec3(50, 50, 50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)
+            ));
+
         // Clear screen
         glClear(GL_COLOR_BUFFER_BIT);
+
+        // Activate Shader
+        shader.activate(); // glUseProgram
+
+        // Compute the MVP matrix from keyboard and mouse input
+		camera.computeMatricesFromInputs();
+		glm::mat4 ModelMatrix = glm::mat4(1.0);
+		glm::mat4 MVP = camera.getVPMatrix() * ModelMatrix;
 
         // Activate shader and bind MVP uniform
         shader.bind("MVP", MVP);
@@ -92,7 +105,7 @@ int main(int argc, char * argv[]) {
         glfwPollEvents();
     }   
 
-    // glfwTerminate();
+    // glfwTerminate(); // Causes segfault on my machine? 
 
     return EXIT_SUCCESS;
 }
