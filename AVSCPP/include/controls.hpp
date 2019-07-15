@@ -16,8 +16,11 @@ namespace AVSCPP {
             CameraControl(GLFWwindow *_window) {window = _window;}
             void computeMatricesFromInputs();
             glm::mat4 getViewMatrix() {return ViewMatrix;}
+            glm::mat4 getInverseViewMatrix() {return glm::inverse(ViewMatrix);}
             glm::mat4 getProjectionMatrix() {return ProjectionMatrix;}
+            glm::mat4 getInverseProjectionMatrix() {return glm::inverse(ProjectionMatrix);}
             glm::mat4 getVPMatrix() {return ProjectionMatrix * ViewMatrix;}
+            glm::mat4 getInverseVPMatrix() {return glm::inverse(ProjectionMatrix * ViewMatrix);}
             void toggleControl();
             void setViewMatrix(glm::mat4 vm);
             void resetView();
