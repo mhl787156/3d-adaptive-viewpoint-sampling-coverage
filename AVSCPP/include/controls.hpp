@@ -21,6 +21,9 @@ namespace AVSCPP {
             void toggleControl();
             void setViewMatrix(glm::mat4 vm);
             void resetView();
+            glm::vec3 getPosition() {return position;}
+            float getAspect() {return aspect;}
+            float getfov() {return initialFoV;}
 
         private:
 
@@ -36,6 +39,10 @@ namespace AVSCPP {
             float verticalAngle = 0.0f;
             // Initial Field of View
             float initialFoV = 45.0f;
+            // Aspect Ratio
+            float aspect = 4.0f / 3.0f;
+
+            double xpos, ypos;
 
             float speed = 3.0f; // 3 units / second
             float mouseSpeed = 0.005f;
