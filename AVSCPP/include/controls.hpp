@@ -13,7 +13,10 @@ namespace AVSCPP {
     {
         public:
             // Constructor and Destructor
-            CameraControl(GLFWwindow *_window) {window = _window;}
+            CameraControl(GLFWwindow *_window) {
+                window = _window;
+                glfwGetWindowSize(_window, &width, &height);
+            }
             void computeMatricesFromInputs();
             glm::mat4 getViewMatrix() {return ViewMatrix;}
             glm::mat4 getInverseViewMatrix() {return glm::inverse(ViewMatrix);}
@@ -31,11 +34,19 @@ namespace AVSCPP {
         private:
 
             GLFWwindow *window;
+            int width;
+            int height;
+
             glm::mat4 ViewMatrix;
             glm::mat4 ProjectionMatrix;
             bool mouseControl = true;
             // Initial position : on +Z
-            glm::vec3 position = glm::vec3( 0, 0, 5 ); 
+            glm::vec3 position = glm::vec3( 5, 5, 5); 
+            glm::vec3 direction = glm::vec3(-5, -5, -5);
+            glm::vec3 up = glm::vec3(1, 0, 0);
+            glm::vec3 right = glm::vec3(0.0);
+            glm::vec3 lookat = glm::vec3(0.0);
+
             // Initial horizontal angle : toward -Z
             float horizontalAngle = 3.14f;
             // Initial vertical angle : none

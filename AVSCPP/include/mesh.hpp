@@ -38,6 +38,8 @@ namespace AVSCPP
 
         // Public Member Functions
         void draw(GLuint shader);
+        void setModelMatrix(glm::mat4 mat) {ModelMatrix = mat;}
+        glm::mat4 getModelMatrix() {return ModelMatrix;}
 
         GLuint getSize() { // Recursively compute size
             GLuint size = mIndices.size();
@@ -69,6 +71,8 @@ namespace AVSCPP
         GLuint mVertexArray;
         GLuint mVertexBuffer;
         GLuint mElementBuffer;
+
+        glm::mat4 ModelMatrix;
 
     };
 }

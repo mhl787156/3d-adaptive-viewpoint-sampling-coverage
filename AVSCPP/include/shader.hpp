@@ -29,6 +29,7 @@ namespace AVSCPP
         // Wrap Calls to glUniform
         void bind(unsigned int location, float value);
         void bind(unsigned int location, glm::vec2 const & value);
+        void bind(unsigned int location, glm::vec3 const & value);
         void bind(unsigned int location, glm::mat4 const & matrix);
         template<typename T> Shader & bind(std::string const & name, T&& value)
         {

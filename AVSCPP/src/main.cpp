@@ -8,17 +8,24 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+// Opencv
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+
 // Standard Headers
 #include <cstdio>
 #include <cstdlib>
 #include <utility> 
+#include <iostream>
+#include <fstream>
 
 // Local Library Headers
 #include "shader.hpp"
 #include "mesh.hpp"
 #include "controls.hpp"
 
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow *window, AVSCPP::CameraControl *c);
 GLfloat pixelIndex(GLfloat *b, int w, int h, int c);
 GLint pixelIndex(GLint *b, int w, int h, int c);
 
@@ -52,9 +59,13 @@ int main(int argc, char * argv[]) {
     // Read in .obj filec
     std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/cube.obj";
     AVSCPP::Mesh modelPoints(modelPath);
+    glm::mat4 locmat = glm::mat4(1.0);
+    locmat[3] = glm::vec4(0.0, 1.0, 0.0, 1.0);
+    modelPoints.setModelMatrix(locmat);
 
     std::string const floorPath = PROJECT_SOURCE_DIR "/resources/models/plane.obj";
     AVSCPP::Mesh floorMesh(floorPath);
+    floorMesh.setModelMatrix(glm::mat4(1.0));
 
     // Create Model-View-Projection Matrix:
     AVSCPP::CameraControl camera(mWindow);
@@ -63,6 +74,21 @@ int main(int argc, char * argv[]) {
     GLuint VertexArrayObject;
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
+
+    int vertices[] = {
+        // 0, 0, 0, 1000,
+        -1000, -1000, -1000, 1000,
+        1000, 1000, 1000, 1000,
+        -1000, 1000, 1000, 1000,
+        1000, -1000, 1000, 1000
+    };  
+
+    // VBO for drawing collected points
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, mWidth * mHeight * 4 * sizeof(GLint), NULL, GL_DYNAMIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // screen quad VAO
     float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
@@ -87,12 +113,20 @@ int main(int argc, char * argv[]) {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
 
+    int scale = 100000;
+
     // Create and compile our GLSL program from the shaders
     std::string shaderPath = PROJECT_SOURCE_DIR "/AVSCPP/shaders/";
     AVSCPP::Shader shader;
     shader.attach(shaderPath+"simplevertexshader.vert")
           .attach(shaderPath+"simplefragmentshader.frag")
           .link();
+
+    AVSCPP::Shader intshader;
+    intshader.attach(shaderPath+"simplevertexshaderint.vert")
+          .attach(shaderPath+"simplefragmentshaderint.frag")
+          .link();
+    intshader.bind("scale", scale);
 
     AVSCPP::Shader texshader;
     texshader.attach(shaderPath+"2dtexvertexshader.vert")
@@ -109,7 +143,7 @@ int main(int argc, char * argv[]) {
     glm::vec2 hsnp = glm::vec2(glm::tan(camera.getfov()/2.0)*camera.getAspect(), glm::tan(camera.getfov()/2.0));
     projshader.bind("halfSizeNearPlane", hsnp);
     projshader.bind("screenTexture", 0);
-    projshader.bind("scaleFactor", 1000);
+    projshader.bind("scaleFactor", scale);
 
     // Create frame buffer
     GLuint framebuffer1;
@@ -161,6 +195,8 @@ int main(int argc, char * argv[]) {
 
     GLint * pixelArray = new GLint[mHeight * mWidth * 4];
     GLint * pixelArray2 = new GLint[mHeight * mWidth * 4];
+
+    // cv::namedWindow( "test", cv::WINDOW_AUTOSIZE );
    
     while (!glfwWindowShouldClose(mWindow))
     {
@@ -170,9 +206,16 @@ int main(int argc, char * argv[]) {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        printf("%f: ", currentFrame);
+
+        glm::vec3 camPos = camera.getPosition();
+        for (int i = 0; i < 3; i++) {
+            printf("%f ", camPos[i]);
+        }
+
         // input
         // -----
-        processInput(mWindow);
+        processInput(mWindow, &camera);
 
         // First pass into framebuffer with original shaders
         // ------
@@ -183,7 +226,7 @@ int main(int argc, char * argv[]) {
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         // camera.setViewMatrix(glm::lookAt(
-        //             glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)
+        //             glm::vec3(0, 5, 0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)
         //         ));
 
         // Activate Shader
@@ -196,46 +239,87 @@ int main(int argc, char * argv[]) {
         shader.bind("MVP", MVP);
 
         // Draw Model
-        floorMesh.draw(shader.get());
+        // floorMesh.draw(shader.get());
         modelPoints.draw(shader.get());
         
+        if (glfwGetKey(mWindow, GLFW_KEY_A) == GLFW_PRESS) {
+            // 2nd pass backprojection
+            // -----------
+            glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
+            glViewport(0, 0, mWidth, mHeight);
+            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
+            
+            projshader.activate();
+            // projshader.bind("persMatrix", camera.getProjectionMatrix());
+            // projshader.bind("eyePositioninWorld", camera.getPosition());
+            projshader.bind("invViewMatrix", camera.getInverseViewMatrix());
 
-        // 2nd pass backprojection
-        // -----------
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
-        glViewport(0, 0, mWidth, mHeight);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
-        
-        projshader.activate();
-        projshader.bind("invViewMatrix", camera.getInverseViewMatrix());
-        glBindVertexArray(quadVAO);
-        glBindTexture(GL_TEXTURE_2D, texDepthBuffer);	// use the depth attachment texture as the texture of the quad plane
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+            glBindVertexArray(quadVAO);
+            glBindTexture(GL_TEXTURE_2D, texDepthBuffer);	// use the depth attachment texture as the texture of the quad plane
+            glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        glBindTexture(GL_TEXTURE_2D, projtexColorBuffer);
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-        glGetTexImage(GL_TEXTURE_2D, 0,  GL_RGBA_INTEGER, GL_INT, pixelArray2);
-        for (int i = 0; i < 4; i++) {
-            printf("%i ", pixelIndex(pixelArray2, mWidth/2, mHeight/2, i));        
-        }        
-        printf("\n");
+            glBindTexture(GL_TEXTURE_2D, projtexColorBuffer);
+            glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+            glGetTexImage(GL_TEXTURE_2D, 0,  GL_RGBA_INTEGER, GL_INT, pixelArray);
+            
+            GLfloat k = (float) pixelIndex(pixelArray, mWidth/2, mHeight/2, 3);
+            for (int i = 0; i < 3; i++) {
+                GLfloat v = (float) pixelIndex(pixelArray, mWidth/2, mHeight/2, i);
+                printf("%f ", v/k);        
+            }        
+
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferSubData(GL_ARRAY_BUFFER, 0,  mWidth * mHeight * 4 * sizeof(GLint), pixelArray);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+            ///////////////////////////////////////////
+            // Print out to file to plot using matplotlib as sanity check
+            // std::ofstream myfile;
+            // myfile.open("image.txt");
+            // for(int i = 0; i < mWidth; i++) {
+            //     for(int j = 0; j < mHeight; j++) {
+            //         for(int k = 0; k < 4; k++) {
+            //             myfile << pixelIndex(pixelArray, i, j, k) << " ";
+            //         }
+            //         myfile << "\n";
+            //     }
+            // }
+            // myfile.close();
+            // return 0;
+            ///////////////////////////////////////////
+        }
 
 
         // third pass (render screen)
         glBindFramebuffer(GL_FRAMEBUFFER, 0); // back to default framebuffer
         glViewport(0, 0, mWidth, mHeight);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f); 
+        glClearColor(0.0, 0.0, 0.5, 0.0); 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
 
-        texshader.activate(); // activate 2d texture shader
-        glBindVertexArray(quadVAO);
-        glBindTexture(GL_TEXTURE_2D, texColorBuffer);	// use the depth attachment texture as the texture of the quad plane
+        // texshader.activate(); // activate 2d texture shader
+        // glBindVertexArray(quadVAO);
+        // glBindTexture(GL_TEXTURE_2D, texColorBuffer);	// use the color attachment texture as the texture of the quad plane
         // glBindTexture(GL_TEXTURE_2D, texDepthBuffer);	// use the depth attachment texture as the texture of the quad plane
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // glDrawArrays(GL_TRIANGLES, 0, 6);
+        
+        shader.activate(); // glUseProgram
+        shader.bind("MVP", MVP);
+        modelPoints.draw(shader.get());
 
+        intshader.activate();
+        intshader.bind("MVP", MVP);
+        glEnable(GL_PROGRAM_POINT_SIZE);
+        glBindVertexArray(VertexArrayObject);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glEnableVertexAttribArray(0);  
+        glVertexAttribPointer(0, 4, GL_INT, GL_FALSE, 0, (void*)0);
+        
+        glDrawArrays(GL_POINTS, 0, (int) mWidth * mHeight);
+
+        printf("\n");
 
         glfwSwapBuffers(mWindow);
         glfwPollEvents();
@@ -254,11 +338,16 @@ int main(int argc, char * argv[]) {
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow *window, AVSCPP::CameraControl* c)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        c->resetView();
+
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        c->toggleControl();
 }
 
 GLfloat pixelIndex(GLfloat *b, int w, int h, int c) {

@@ -15,11 +15,10 @@ namespace AVSCPP {
 	}
 
 	void CameraControl::resetView() {
-		setViewMatrix(glm::lookAt(
-			glm::vec3(1, 1, 1),
-			glm::vec3(0, 0, 0),
-			glm::vec3(0, 1, 0)
-		));
+		position = glm::vec3(0, 0, 5);
+		lookat = glm::vec3(0.0, 0.0, 0.0);
+		up = glm::vec3(1, 0, 0);
+		mouseControl = false;
 	}
 
 	void CameraControl::computeMatricesFromInputs(){
@@ -38,28 +37,25 @@ namespace AVSCPP {
 			glfwGetCursorPos(window, &xpos, &ypos);
 
 			// Reset mouse position for next frame
-			glfwSetCursorPos(window, 1024/2, 768/2);
+			glfwSetCursorPos(window, (int)width/2, (int)height/2);
 
 			// Compute new orientation
-			horizontalAngle += mouseSpeed * float(1024/2 - xpos );
-			verticalAngle   += mouseSpeed * float( 768/2 - ypos );
+			horizontalAngle += mouseSpeed * float(width/2 - xpos );
+			verticalAngle   += mouseSpeed * float(height/2 - ypos );
 
 			// Direction : Spherical coordinates to Cartesian coordinates conversion
-			glm::vec3 direction(
+			direction = glm::vec3(
 				cos(verticalAngle) * sin(horizontalAngle), 
 				sin(verticalAngle),
 				cos(verticalAngle) * cos(horizontalAngle)
 			);
 			
 			// Right vector
-			glm::vec3 right = glm::vec3(
+			right = glm::vec3(
 				sin(horizontalAngle - 3.14f/2.0f), 
 				0,
 				cos(horizontalAngle - 3.14f/2.0f)
 			);
-			
-			// Up vector
-			glm::vec3 up = glm::cross( right, direction );
 
 			// Move forward
 			if (glfwGetKey( window, GLFW_KEY_UP ) == GLFW_PRESS){
@@ -78,17 +74,22 @@ namespace AVSCPP {
 				position -= right * deltaTime * speed;
 			}
 
-			float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
-
-			// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-			ProjectionMatrix = glm::perspective(glm::radians(FoV), aspect, 0.1f, 100.0f);
-			// Camera matrix
-			ViewMatrix       = glm::lookAt(
-										position,           // Camera is here
-										position+direction, // and looks here : at the same position, plus "direction"
-										up                  // Head is up (set to 0,-1,0 to look upside-down)
-								);
+			// Up vector
+			up = glm::cross( right, direction );
+			lookat = position + direction;
 		}
+
+		float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
+		
+		// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
+		ProjectionMatrix = glm::perspective(glm::radians(FoV), aspect, 0.1f, 100.0f);
+
+		// Camera matrix
+		ViewMatrix       = glm::lookAt(
+									position,           // Camera is here
+									lookat, 			// and looks here : at the same position, plus "direction"
+									up                  // Head is up (set to 0,-1,0 to look upside-down)
+							);
 		
 		// For the next frame, the "last time" will be "now"
 		lastTime = currentTime;

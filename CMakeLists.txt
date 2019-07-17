@@ -1,5 +1,10 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.1)
 project(AVSCPP)
+
+# Enable C++11
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
 
 option(GLFW_BUILD_DOCS OFF)
 option(GLFW_BUILD_EXAMPLES OFF)
@@ -18,6 +23,9 @@ option(BUILD_OPENGL3_DEMOS OFF)
 option(BUILD_UNIT_TESTS OFF)
 add_subdirectory(external/bullet)
 
+
+find_package( OpenCV REQUIRED )
+
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
 else()
@@ -35,6 +43,8 @@ include_directories(AVSCPP/include/
                     external/glfw/include/
                     external/glm/
                     external/stb/)
+
+include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 file(GLOB EXTERNAL_SOURCES external/glad/src/glad.c)
 file(GLOB PROJECT_HEADERS AVSCPP/include/*.hpp)
@@ -60,7 +70,7 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
                                ${PROJECT_SHADERS} ${PROJECT_CONFIGS}
                                ${EXTERNAL_SOURCES})
 target_link_libraries(${PROJECT_NAME} assimp glfw
-                      ${GLFW_LIBRARIES} ${GLAD_LIBRARIES}
+                      ${GLFW_LIBRARIES} ${GLAD_LIBRARIES} ${OpenCV_LIBS}
                       BulletDynamics BulletCollision LinearMath)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
