@@ -16,6 +16,7 @@ namespace AVSCPP {
             CameraControl(GLFWwindow *_window) {
                 window = _window;
                 glfwGetWindowSize(_window, &width, &height);
+                aspect = (float) width / (float) height;
             }
             void computeMatricesFromInputs();
             glm::mat4 getViewMatrix() {return ViewMatrix;}
@@ -30,6 +31,7 @@ namespace AVSCPP {
             glm::vec3 getPosition() {return position;}
             float getAspect() {return aspect;}
             float getfov() {return initialFoV;}
+            glm::vec2 getDisplayRange(){return displayRange;}
 
         private:
 
@@ -47,6 +49,8 @@ namespace AVSCPP {
             glm::vec3 right = glm::vec3(0.0);
             glm::vec3 lookat = glm::vec3(0.0);
 
+            glm::vec2 displayRange = glm::vec2(0.1, 100.0);
+
             // Initial horizontal angle : toward -Z
             float horizontalAngle = 3.14f;
             // Initial vertical angle : none
@@ -58,7 +62,7 @@ namespace AVSCPP {
 
             double xpos, ypos;
 
-            float speed = 3.0f; // 3 units / second
+            float speed = 10.0f; // 3 units / second
             float mouseSpeed = 0.005f;
     };
     

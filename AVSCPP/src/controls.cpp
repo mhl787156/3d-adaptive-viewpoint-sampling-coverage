@@ -82,7 +82,7 @@ namespace AVSCPP {
 		float FoV = initialFoV;// - 5 * glfwGetMouseWheel(); // Now GLFW 3 requires setting up a callback for this. It's a bit too complicated for this beginner's tutorial, so it's disabled instead.
 		
 		// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-		ProjectionMatrix = glm::perspective(glm::radians(FoV), aspect, 0.1f, 100.0f);
+		ProjectionMatrix = glm::perspective(glm::radians(FoV), aspect, displayRange[0], displayRange[1]);
 
 		// Camera matrix
 		ViewMatrix       = glm::lookAt(

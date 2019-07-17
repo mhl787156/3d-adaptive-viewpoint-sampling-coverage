@@ -19,6 +19,6 @@
 
 // Define Some Constants
 const int mWidth = 800; //1280;
-const int mHeight = 680; // 800;
+const int mHeight = 600; // 800;
 
 #endif // ~AVS_CPP Header

@@ -57,7 +57,7 @@ int main(int argc, char * argv[]) {
     fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
 
     // Read in .obj filec
-    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/cube.obj";
+    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane.obj";
     AVSCPP::Mesh modelPoints(modelPath);
     glm::mat4 locmat = glm::mat4(1.0);
     locmat[3] = glm::vec4(0.0, 1.0, 0.0, 1.0);
@@ -75,20 +75,11 @@ int main(int argc, char * argv[]) {
 	glGenVertexArrays(1, &VertexArrayObject);
 	glBindVertexArray(VertexArrayObject);
 
-    int vertices[] = {
-        // 0, 0, 0, 1000,
-        -1000, -1000, -1000, 1000,
-        1000, 1000, 1000, 1000,
-        -1000, 1000, 1000, 1000,
-        1000, -1000, 1000, 1000
-    };  
-
     // VBO for drawing collected points
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, mWidth * mHeight * 4 * sizeof(GLint), NULL, GL_DYNAMIC_DRAW);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // screen quad VAO
     float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
@@ -126,7 +117,6 @@ int main(int argc, char * argv[]) {
     intshader.attach(shaderPath+"simplevertexshaderint.vert")
           .attach(shaderPath+"simplefragmentshaderint.frag")
           .link();
-    intshader.bind("scale", scale);
 
     AVSCPP::Shader texshader;
     texshader.attach(shaderPath+"2dtexvertexshader.vert")
@@ -140,10 +130,14 @@ int main(int argc, char * argv[]) {
               .attach(shaderPath+"2dbackprojectfrag.frag")
               .link();
     projshader.activate();
-    glm::vec2 hsnp = glm::vec2(glm::tan(camera.getfov()/2.0)*camera.getAspect(), glm::tan(camera.getfov()/2.0));
+
+    printf("%f\n", camera.getAspect());
+    float half_y_near_plane = glm::tan(camera.getfov() / 2.0);
+    glm::vec2 hsnp = glm::vec2(half_y_near_plane , half_y_near_plane / camera.getAspect()); //  / camera.getAspect();
     projshader.bind("halfSizeNearPlane", hsnp);
     projshader.bind("screenTexture", 0);
     projshader.bind("scaleFactor", scale);
+    projshader.bind("cameraNearFarPlane", camera.getDisplayRange());
 
     // Create frame buffer
     GLuint framebuffer1;
@@ -162,7 +156,7 @@ int main(int argc, char * argv[]) {
     GLuint texDepthBuffer;
     glGenTextures(1, &texDepthBuffer);
     glBindTexture(GL_TEXTURE_2D, texDepthBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -192,11 +186,7 @@ int main(int argc, char * argv[]) {
 	    printf("ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
-
     GLint * pixelArray = new GLint[mHeight * mWidth * 4];
-    GLint * pixelArray2 = new GLint[mHeight * mWidth * 4];
-
-    // cv::namedWindow( "test", cv::WINDOW_AUTOSIZE );
    
     while (!glfwWindowShouldClose(mWindow))
     {
@@ -251,8 +241,6 @@ int main(int argc, char * argv[]) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
             
             projshader.activate();
-            // projshader.bind("persMatrix", camera.getProjectionMatrix());
-            // projshader.bind("eyePositioninWorld", camera.getPosition());
             projshader.bind("invViewMatrix", camera.getInverseViewMatrix());
 
             glBindVertexArray(quadVAO);
@@ -267,57 +255,38 @@ int main(int argc, char * argv[]) {
             for (int i = 0; i < 3; i++) {
                 GLfloat v = (float) pixelIndex(pixelArray, mWidth/2, mHeight/2, i);
                 printf("%f ", v/k);        
-            }        
+            }
 
+            glBindVertexArray(VertexArrayObject);
             glBindBuffer(GL_ARRAY_BUFFER, vbo);
             glBufferSubData(GL_ARRAY_BUFFER, 0,  mWidth * mHeight * 4 * sizeof(GLint), pixelArray);
             glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-            ///////////////////////////////////////////
-            // Print out to file to plot using matplotlib as sanity check
-            // std::ofstream myfile;
-            // myfile.open("image.txt");
-            // for(int i = 0; i < mWidth; i++) {
-            //     for(int j = 0; j < mHeight; j++) {
-            //         for(int k = 0; k < 4; k++) {
-            //             myfile << pixelIndex(pixelArray, i, j, k) << " ";
-            //         }
-            //         myfile << "\n";
-            //     }
-            // }
-            // myfile.close();
-            // return 0;
-            ///////////////////////////////////////////
         }
-
 
         // third pass (render screen)
         glBindFramebuffer(GL_FRAMEBUFFER, 0); // back to default framebuffer
         glViewport(0, 0, mWidth, mHeight);
         glClearColor(0.0, 0.0, 0.5, 0.0); 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
+        // glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
 
-        // texshader.activate(); // activate 2d texture shader
-        // glBindVertexArray(quadVAO);
-        // glBindTexture(GL_TEXTURE_2D, texColorBuffer);	// use the color attachment texture as the texture of the quad plane
-        // glBindTexture(GL_TEXTURE_2D, texDepthBuffer);	// use the depth attachment texture as the texture of the quad plane
-        // glDrawArrays(GL_TRIANGLES, 0, 6);
-        
-        shader.activate(); // glUseProgram
-        shader.bind("MVP", MVP);
-        modelPoints.draw(shader.get());
+        if (glfwGetKey(mWindow, GLFW_KEY_D) != GLFW_PRESS) {
+            shader.activate(); // glUseProgram
+            shader.bind("MVP", MVP);
+            modelPoints.draw(shader.get());
+        }
 
         intshader.activate();
         intshader.bind("MVP", MVP);
         glEnable(GL_PROGRAM_POINT_SIZE);
         glBindVertexArray(VertexArrayObject);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glEnableVertexAttribArray(0);  
         glVertexAttribPointer(0, 4, GL_INT, GL_FALSE, 0, (void*)0);
+        glEnableVertexAttribArray(0);  
         
-        glDrawArrays(GL_POINTS, 0, (int) mWidth * mHeight);
+        glDrawArrays(GL_POINTS, 0, mWidth * mHeight);
 
         printf("\n");
 
