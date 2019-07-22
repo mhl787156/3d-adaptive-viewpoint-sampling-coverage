@@ -51,8 +51,8 @@ namespace AVSCPP
     private:
 
         // Disable Copying and Assignment
-        Mesh(Mesh const &) = delete;
-        Mesh & operator=(Mesh const &) = delete;
+        // Mesh(Mesh const &) = delete;
+        // Mesh & operator=(Mesh const &) = delete;
 
         // Private Member Functions
         void parse(std::string const & path50, aiNode const * node, aiScene const * scene);
