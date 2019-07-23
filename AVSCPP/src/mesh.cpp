@@ -135,7 +135,7 @@ namespace AVSCPP
             // Load the Texture Image from File
             aiString str; material->GetTexture(type, i, & str);
             std::string filename = str.C_Str(); int width, height, channels;
-            filename = PROJECT_SOURCE_DIR "/Mirage/Models/" + path + "/" + filename;
+            filename = PROJECT_SOURCE_DIR "/resources/models/" + path + "/" + filename;
             unsigned char * image = stbi_load(filename.c_str(), & width, & height, & channels, 0);
             if (!image) fprintf(stderr, "%s %s\n", "Failed to Load Texture", filename.c_str());
 
@@ -165,5 +165,31 @@ namespace AVSCPP
             else if (type == aiTextureType_SPECULAR) mode = "specular";
             textures.insert(std::make_pair(texture, mode));
         }   return textures;
+    }
+
+
+    std::vector<GLfloat> Mesh::getBoundingBox(std::vector<GLfloat> bounds) {
+        // bounds [xmin, xmax, ymin, ymax, zmin, zmax]
+        for(Vertex v: mVertices) {
+            glm::vec3 p = v.position;
+            if(p[0] < bounds[0]) { bounds[0] = p[0];} //xmin
+            if(p[0] > bounds[1]) { bounds[1] = p[0];} //xmax
+            if(p[1] < bounds[2]) { bounds[2] = p[1];} //ymin
+            if(p[1] > bounds[3]) { bounds[3] = p[1];} //ymin
+            if(p[2] < bounds[4]) { bounds[4] = p[2];} //zmin
+            if(p[2] > bounds[5]) { bounds[5] = p[2];} //zmax
+        }
+
+        for(auto &i: mSubMeshes) {
+            std::vector<GLfloat> sb = i->getBoundingBox(bounds);
+            if(sb[0] < bounds[0]){bounds[0] = sb[0];} //xmin
+            if(sb[1] > bounds[1]){bounds[1] = sb[1];} //xmax
+            if(sb[2] < bounds[2]){bounds[2] = sb[2];} //ymin
+            if(sb[3] > bounds[3]){bounds[3] = sb[3];} //ymin
+            if(sb[4] < bounds[4]){bounds[4] = sb[4];} //zmin
+            if(sb[5] > bounds[5]){bounds[5] = sb[5];} //zmax
+        }
+
+        return bounds;
     }
 };

@@ -26,12 +26,15 @@ namespace AVSCPP {
             glm::mat4 getVPMatrix() {return ProjectionMatrix * ViewMatrix;}
             glm::mat4 getInverseVPMatrix() {return glm::inverse(ProjectionMatrix * ViewMatrix);}
             void toggleControl();
+            void enableControl() {mouseControl = true;}
+            void disableControl() {mouseControl = false;}
             void setViewMatrix(glm::mat4 vm);
             void resetView();
-            glm::vec3 getPosition() {return position;}
+            glm::vec3 getPosition() {return glm::vec3(ViewMatrix[3]);}
             float getAspect() {return aspect;}
             float getfov() {return initialFoV;}
             glm::vec2 getDisplayRange(){return displayRange;}
+            void setDisplayRange(glm::vec2 dr){displayRange = dr;}
 
         private:
 
@@ -54,7 +57,7 @@ namespace AVSCPP {
             // Initial horizontal angle : toward -Z
             float horizontalAngle = 3.14f;
             // Initial vertical angle : none
-            float verticalAngle = 0.0f;
+            float verticalAngle = 3.14f;
             // Initial Field of View
             float initialFoV = 45.0f;
             // Aspect Ratio

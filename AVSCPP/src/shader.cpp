@@ -20,6 +20,8 @@ namespace AVSCPP
         { glProgramUniform2fv(mProgram, location, 1, glm::value_ptr(value)); }
     void Shader::bind(unsigned int location, glm::vec3 const & value) 
         { glProgramUniform3fv(mProgram, location, 1, glm::value_ptr(value)); }
+    void Shader::bind(unsigned int location, glm::vec4 const & value) 
+        { glProgramUniform4fv(mProgram, location, 1, glm::value_ptr(value)); }
     void Shader::bind(unsigned int location, glm::mat4 const & matrix)
         { glProgramUniformMatrix4fv(mProgram, location, 1, GL_FALSE, glm::value_ptr(matrix)); }
 

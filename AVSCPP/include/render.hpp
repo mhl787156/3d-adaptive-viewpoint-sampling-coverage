@@ -17,16 +17,10 @@
 #include <vector>
 
 // Local Library Headers
-#include "avscpp.hpp"
 #include "shader.hpp"
 #include "mesh.hpp"
 #include "controls.hpp"
 
-void processInput(GLFWwindow *window, AVSCPP::CameraControl *c);
-GLfloat pixelIndex(GLfloat *b, int w, int h, int c);
-GLint pixelIndex(GLint *b, int w, int h, int c);
-
-int* renderCameraView(std::vector<float> cameraloc, std::vector<float> cameraorient);
 
 
 
@@ -39,18 +33,27 @@ class Renderer {
         ~Renderer();
         void initVertexArraysandBuffers();
         void initFrameBuffers();
-        void setShaders(AVSCPP::Shader &_normalShader,
-                        AVSCPP::Shader &_backprojectionShader,
-                        AVSCPP::Shader &_integerdisplayShader,
-                        AVSCPP::CameraControl* camera);
-        int* getRenderedPositions(AVSCPP::CameraControl* camera, std::vector<AVSCPP::Mesh*> modelMesh);
+        void setShaders(AVSCPP::Shader *_normalShader,
+                        AVSCPP::Shader *_backprojectionShader,
+                        AVSCPP::Shader *_integerdisplayShader,
+                        AVSCPP::CameraControl &camera);
+        GLfloat* getRenderedPositions(AVSCPP::CameraControl &camera, std::vector<AVSCPP::Mesh*> modelMesh);
+
+        void displayViewpoints(AVSCPP::CameraControl &camera, std::vector<glm::mat4> &viewpoints, std::vector<AVSCPP::Mesh*> modelMesh);
 
         bool canRender() {
             return !glfwWindowShouldClose(mWindow);
         }
         void setRenderToScreen(bool l) {renderToScreen = l;}
+        void setDebug(bool l){debug = l;}
 
         GLFWwindow* getWindow(){return mWindow;}
+        GLint getNumPixels(){return numPixels;}
+        GLint getNumPixelElements(){return numPixels*4;}
+
+        void processInput(AVSCPP::CameraControl &c);
+        GLfloat pixelIndex(GLfloat *b, int w, int h, int c);
+        GLint pixelIndex(GLint *b, int w, int h, int c);
 
     private:
         // timing
@@ -61,6 +64,7 @@ class Renderer {
         // window
         GLint mWidth;
         GLint mHeight;
+        GLint numPixels;
         GLFWwindow* mWindow;
 
         // Shaders
@@ -81,11 +85,9 @@ class Renderer {
 
         // DataStore
         GLint * pixelArray;
+        GLfloat * floatPixelArray;
         bool renderToScreen = false;
-
-
-
-
+        bool debug = false;
 };
 
 

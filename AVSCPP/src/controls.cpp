@@ -34,27 +34,47 @@ namespace AVSCPP {
 		if (mouseControl) {
 
 			// Get mouse position
-			glfwGetCursorPos(window, &xpos, &ypos);
+			// glfwGetCursorPos(window, &xpos, &ypos);
 
 			// Reset mouse position for next frame
-			glfwSetCursorPos(window, (int)width/2, (int)height/2);
+			// glfwSetCursorPos(window, (int)width/2, (int)height/2);
 
 			// Compute new orientation
-			horizontalAngle += mouseSpeed * float(width/2 - xpos );
-			verticalAngle   += mouseSpeed * float(height/2 - ypos );
+			// horizontalAngle += mouseSpeed * float(width/2 - xpos );
+			// verticalAngle   += mouseSpeed * float(height/2 - ypos );
+
+			if (glfwGetKey( window, GLFW_KEY_S ) == GLFW_PRESS){
+				verticalAngle += deltaTime * speed * 0.05;
+			}
+			// Move backward
+			if (glfwGetKey( window, GLFW_KEY_W ) == GLFW_PRESS){
+				verticalAngle -= deltaTime * speed * 0.05;
+			}
+			// Strafe right
+			if (glfwGetKey( window, GLFW_KEY_D ) == GLFW_PRESS){
+				horizontalAngle += deltaTime * speed * 0.05;
+			}
+			// Strafe left
+			if (glfwGetKey( window, GLFW_KEY_A ) == GLFW_PRESS){
+				horizontalAngle -= deltaTime * speed * 0.05;
+			}
+
+			// if(verticalAngle < 0.1) {verticalAngle = M_PI;}
+			// if(horizontalAngle < 0.1) {horizontalAngle = M_PI;}
+
 
 			// Direction : Spherical coordinates to Cartesian coordinates conversion
 			direction = glm::vec3(
 				cos(verticalAngle) * sin(horizontalAngle), 
-				sin(verticalAngle),
-				cos(verticalAngle) * cos(horizontalAngle)
+				cos(verticalAngle) * cos(horizontalAngle),
+				sin(verticalAngle)
 			);
 			
 			// Right vector
 			right = glm::vec3(
 				sin(horizontalAngle - 3.14f/2.0f), 
-				0,
-				cos(horizontalAngle - 3.14f/2.0f)
+				cos(horizontalAngle - 3.14f/2.0f),
+				0
 			);
 
 			// Move forward
@@ -84,13 +104,15 @@ namespace AVSCPP {
 		// Projection matrix : 45� Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
 		ProjectionMatrix = glm::perspective(glm::radians(FoV), aspect, displayRange[0], displayRange[1]);
 
+		if(mouseControl) {
 		// Camera matrix
 		ViewMatrix       = glm::lookAt(
 									position,           // Camera is here
 									lookat, 			// and looks here : at the same position, plus "direction"
 									up                  // Head is up (set to 0,-1,0 to look upside-down)
 							);
-		
+		}
+
 		// For the next frame, the "last time" will be "now"
 		lastTime = currentTime;
 	}

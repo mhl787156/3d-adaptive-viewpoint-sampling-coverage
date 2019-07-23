@@ -6,6 +6,7 @@ Renderer::Renderer(GLint _mWidth, GLint _mHeight) {
 
     mWidth = _mWidth;
     mHeight = _mHeight;
+    numPixels = mWidth * mHeight;
 
      // Load GLFW and Create a Window
     glfwInit();
@@ -26,7 +27,8 @@ Renderer::Renderer(GLint _mWidth, GLint _mHeight) {
     gladLoadGL();
     fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
 
-    pixelArray = new GLint[mHeight * mWidth * 4];
+    pixelArray = new GLint[numPixels * 4];
+    floatPixelArray = new GLfloat[numPixels * 4];
 }
 
 Renderer::~Renderer() {
@@ -37,6 +39,7 @@ Renderer::~Renderer() {
     glDeleteBuffers(1, &quadVBO);
 
     free(pixelArray);
+    free(floatPixelArray);
 }
 
 void Renderer::initVertexArraysandBuffers() {
@@ -47,7 +50,7 @@ void Renderer::initVertexArraysandBuffers() {
     // VBO for drawing collected points
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, mWidth * mHeight * 4 * sizeof(GLint), NULL, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, numPixels * 4 * sizeof(GLint), NULL, GL_DYNAMIC_DRAW);
 
     // screen quad VAO
     float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
@@ -71,21 +74,21 @@ void Renderer::initVertexArraysandBuffers() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 }
 
-void Renderer::setShaders(AVSCPP::Shader &_normalShader,
-                        AVSCPP::Shader &_backprojectionShader,
-                        AVSCPP::Shader &_integerdisplayShader,
-                        AVSCPP::CameraControl *camera) {
-    normalShader = &_normalShader;
-    backprojectionShader = &_backprojectionShader;
-    integerdisplayShader = &_integerdisplayShader;
+void Renderer::setShaders(AVSCPP::Shader *_normalShader,
+                        AVSCPP::Shader *_backprojectionShader,
+                        AVSCPP::Shader *_integerdisplayShader,
+                        AVSCPP::CameraControl &camera) {
+    normalShader = _normalShader;
+    backprojectionShader = _backprojectionShader;
+    integerdisplayShader = _integerdisplayShader;
     
     backprojectionShader->activate();
-    float half_y_near_plane = glm::tan(camera->getfov() / 2.0);
-    glm::vec2 hsnp = glm::vec2(half_y_near_plane , half_y_near_plane / camera->getAspect()); //  / camera.getAspect();
+    float half_y_near_plane = glm::tan(camera.getfov() / 2.0);
+    glm::vec2 hsnp = glm::vec2(half_y_near_plane , half_y_near_plane / camera.getAspect()); //  / camera.getAspect();
     backprojectionShader->bind("halfSizeNearPlane", hsnp);
     backprojectionShader->bind("screenTexture", 0);
     backprojectionShader->bind("scaleFactor", positionShaderScaler);
-    backprojectionShader->bind("cameraNearFarPlane", camera->getDisplayRange());
+    backprojectionShader->bind("cameraNearFarPlane", camera.getDisplayRange());
 }
 
 
@@ -133,7 +136,7 @@ void Renderer::initFrameBuffers() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 }
 
-int* Renderer::getRenderedPositions(AVSCPP::CameraControl* camera, std::vector<AVSCPP::Mesh*> meshes) {
+GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vector<AVSCPP::Mesh*> meshes) {
 
     if(!renderToScreen) {
         glfwHideWindow(mWindow);
@@ -145,16 +148,18 @@ int* Renderer::getRenderedPositions(AVSCPP::CameraControl* camera, std::vector<A
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
 
-    printf("%f: ", currentFrame);
+    if(debug) {
+        printf("%f (%.2f fps)| Camera Loc (xyz): ", currentFrame, 1/deltaTime);
 
-    glm::vec3 camPos = camera->getPosition();
-    for (int i = 0; i < 3; i++) {
-        printf("%f ", camPos[i]);
+        glm::vec3 camPos = camera.getPosition();
+        for (int i = 0; i < 3; i++) {
+            printf("%f ", camPos[i]);
+        }
     }
 
     // input
     // -----
-    processInput(mWindow, camera);
+    processInput(camera);
 
     // First pass into framebuffer with original shaders
     // ------
@@ -167,15 +172,15 @@ int* Renderer::getRenderedPositions(AVSCPP::CameraControl* camera, std::vector<A
 
     // Activate Shader
     normalShader->activate(); // glUseProgram
+    normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
 
     // Compute the MVP matrix from keyboard and mouse input
-    camera->computeMatricesFromInputs();
-    glm::mat4 ModelMatrix = glm::mat4(1.0);
-    glm::mat4 MVP = camera->getVPMatrix() * ModelMatrix;
-    normalShader->bind("MVP", MVP);
-
+    camera.computeMatricesFromInputs();
+    
     // Draw Meshes
     for(AVSCPP::Mesh* m: meshes){
+        glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
+        normalShader->bind("MVP", MVP);
         m->draw(normalShader->get());
     } 
     
@@ -187,7 +192,7 @@ int* Renderer::getRenderedPositions(AVSCPP::CameraControl* camera, std::vector<A
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
     
     backprojectionShader->activate();
-    backprojectionShader->bind("invViewMatrix", camera->getInverseViewMatrix());
+    backprojectionShader->bind("invViewMatrix", camera.getInverseViewMatrix());
 
     glBindVertexArray(quadVAO);
     glBindTexture(GL_TEXTURE_2D, texDepthBuffer);	// use the depth attachment texture as the texture of the quad plane
@@ -196,16 +201,18 @@ int* Renderer::getRenderedPositions(AVSCPP::CameraControl* camera, std::vector<A
     glBindTexture(GL_TEXTURE_2D, projtexColorBuffer);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     glGetTexImage(GL_TEXTURE_2D, 0,  GL_RGBA_INTEGER, GL_INT, pixelArray);
-    
-    GLfloat k = (float) pixelIndex(pixelArray, mWidth/2, mHeight/2, 3);
-    for (int i = 0; i < 3; i++) {
-        GLfloat v = (float) pixelIndex(pixelArray, mWidth/2, mHeight/2, i);
-        printf("%f ", v/k);        
+
+    if(debug) {
+        printf("| Center Pixel (xyzd): ");
+        for (int i = 0; i < 4; i++) {
+            GLfloat v = (float) pixelIndex(pixelArray, mWidth/2, mHeight/2, i);
+            printf("%f ", v/positionShaderScaler);        
+        }
     }
 
     glBindVertexArray(VertexArrayObject);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0,  mWidth * mHeight * 4 * sizeof(GLint), pixelArray);
+    glBufferSubData(GL_ARRAY_BUFFER, 0,  numPixels * 4 * sizeof(GLint), pixelArray);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     if(renderToScreen) {
@@ -216,53 +223,171 @@ int* Renderer::getRenderedPositions(AVSCPP::CameraControl* camera, std::vector<A
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDisable(GL_CULL_FACE);
 
-        if (glfwGetKey(mWindow, GLFW_KEY_D) != GLFW_PRESS) {
+        if (glfwGetKey(mWindow, GLFW_KEY_X) != GLFW_PRESS) {
             normalShader->activate(); // glUseProgram
-            normalShader->bind("MVP", MVP);
                         // Draw Meshes
             for(AVSCPP::Mesh* m: meshes){
+                glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
+                normalShader->bind("MVP", MVP);
                 m->draw(normalShader->get());
             } 
         }
 
         integerdisplayShader->activate();
-        integerdisplayShader->bind("MVP", MVP);
+        integerdisplayShader->bind("MVP", camera.getVPMatrix());
+        integerdisplayShader->bind("scale", positionShaderScaler);
         glEnable(GL_PROGRAM_POINT_SIZE);
         glBindVertexArray(VertexArrayObject);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glVertexAttribPointer(0, 4, GL_INT, GL_FALSE, 0, (void*)0);
         glEnableVertexAttribArray(0);  
         
-        glDrawArrays(GL_POINTS, 0, mWidth * mHeight);
+        glDrawArrays(GL_POINTS, 0, numPixels);
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
     }
 
-    printf("\n");
+    if(debug) {
+        printf("\n");
+    }
+   
+    for(int i = 0; i < numPixels * 4; i++) {
+        floatPixelArray[i] = float(pixelArray[i]) / positionShaderScaler;
+    }
 
-    glfwSwapBuffers(mWindow);
-    glfwPollEvents();
-
-    return pixelArray;
+    return floatPixelArray;
 }
 
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window, AVSCPP::CameraControl* c)
+void Renderer::processInput(AVSCPP::CameraControl &c)
 {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
+    if (glfwGetKey(mWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(mWindow, true);
 
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        c->resetView();
+    if (glfwGetKey(mWindow, GLFW_KEY_SPACE) == GLFW_PRESS)
+        c.resetView();
 
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        c->toggleControl();
+    if (glfwGetKey(mWindow, GLFW_KEY_C) == GLFW_PRESS)
+        c.toggleControl();
 }
 
-GLfloat pixelIndex(GLfloat *b, int w, int h, int c) {
+GLfloat Renderer::pixelIndex(GLfloat *b, int w, int h, int c) {
     return b[int(w) * 4 + int(h) * mWidth * 4 + c];
 }
 
-GLint pixelIndex(GLint *b, int w, int h, int c) {
+GLint Renderer::pixelIndex(GLint *b, int w, int h, int c) {
     return b[int(w) * 4 + int(h) * mWidth * 4 + c];
+}
+
+void Renderer::displayViewpoints(AVSCPP::CameraControl &camera, 
+                                 std::vector<glm::mat4> &viewpoints,
+                                 std::vector<AVSCPP::Mesh*> meshes) {
+    
+    glfwShowWindow(mWindow);
+    glfwFocusWindow(mWindow);
+    camera.enableControl(); 
+    
+
+    std::vector<glm::vec3> vps;
+    std::vector<glm::vec3> lines;
+    std::vector<glm::vec3> xylines;
+
+    for(glm::mat4 vp: viewpoints) {
+        glm::vec3 cameraLoc = glm::vec3(vp[3]);
+        glm::vec4 unitVectorLoc = vp * glm::vec4(0.0, 0.0, -1.0, 1.0);
+        lines.push_back(cameraLoc);
+        lines.push_back(glm::vec3(unitVectorLoc));
+        
+        unitVectorLoc = vp * glm::vec4(0.0, 0.0, 0.5, 1.0);
+        xylines.push_back(cameraLoc);
+        xylines.push_back(glm::vec3(unitVectorLoc));
+
+        unitVectorLoc = vp * glm::vec4(0.0, 0.5, 0.0, 1.0);
+        xylines.push_back(cameraLoc);
+        xylines.push_back(glm::vec3(unitVectorLoc));
+
+        unitVectorLoc = vp * glm::vec4(0.5, 0.0, 0.0, 1.0);
+        xylines.push_back(cameraLoc);
+        xylines.push_back(glm::vec3(unitVectorLoc));
+
+        // printf("%s -> %s\n", glm::to_string(cameraLoc).c_str(), glm::to_string(unitVectorLoc).c_str());
+        // printf("%s\n", glm::to_string(vp).c_str());
+
+        vps.push_back(glm::vec3(vp[3]));
+    }
+
+    GLuint vpVAO1, vpVAO2, vpVBO1, vpVBO2;
+    glGenVertexArrays(1, &vpVAO1);
+    glBindVertexArray(vpVAO1);
+    glGenBuffers(1, &vpVBO1);
+    glBindBuffer(GL_ARRAY_BUFFER, vpVBO1);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * lines.size(), &lines[0], GL_STATIC_DRAW);
+
+    glGenVertexArrays(1, &vpVAO2);
+    glBindVertexArray(vpVAO2);
+    glGenBuffers(1, &vpVBO2);
+    glBindBuffer(GL_ARRAY_BUFFER, vpVBO2);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * xylines.size(), &xylines[0], GL_STATIC_DRAW);
+
+    glClearColor(0.0, 0.0, 0.5, 0.0); 
+    
+    glEnable(GL_DEPTH_TEST);
+    // glEnable(GL_CULL_FACE); 
+
+    while(canRender()){
+        // per-frame time logic
+        // --------------------
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        // input
+        // -----
+        processInput(camera);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
+
+        // Compute the MVP matrix from keyboard and mouse input
+        camera.computeMatricesFromInputs();
+
+        normalShader->activate(); // glUseProgram
+
+
+        // Draw Meshes
+        if (glfwGetKey(mWindow, GLFW_KEY_X) != GLFW_PRESS) {
+            normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
+            for(AVSCPP::Mesh* m: meshes){
+                glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
+                normalShader->bind("MVP", MVP);
+                m->draw(normalShader->get());
+            } 
+        }
+
+
+
+        normalShader->bind("in_colour", glm::vec4(0.0, 1.0, 0.0, 1.0));
+        glLineWidth(10.0);
+        glBindVertexArray(vpVAO1);
+        glBindBuffer(GL_ARRAY_BUFFER, vpVBO1);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glDrawArrays(GL_LINES, 0, lines.size());
+
+        normalShader->bind("in_colour", glm::vec4(0.5, 0.5, 0.5, 1.0));
+        glLineWidth(1.0);
+        glBindVertexArray(vpVAO2);
+        glBindBuffer(GL_ARRAY_BUFFER, vpVBO2);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glDrawArrays(GL_LINES, 0, xylines.size());
+
+        glfwSwapBuffers(mWindow);
+        glfwPollEvents();
+    }
+
+    glDeleteVertexArrays(1, &vpVAO1);
+    glDeleteVertexArrays(1, &vpVAO2);
+    glDeleteBuffers(1, &vpVBO1);
+    glDeleteBuffers(1, &vpVBO2);
 }

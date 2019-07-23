@@ -1,24 +1,56 @@
-// Preprocessor Directives
 #ifndef AVSCPP_H
 #define AVSCPP_H
-#pragma once
+
 
 // System Headers
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-#include <btBulletDynamicsCommon.h>
 #include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/string_cast.hpp>
 
-// Reference: https://github.com/nothings/stb/blob/master/stb_image.h#L4
-// To use stb_image, add this in *one* C++ source file.
-//     #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+// Standard Headers
+#include <cstdio>
+#include <cstdlib>
+#include <utility> 
+#include <iostream>
+#include <fstream>
+#include <limits>
+#include <vector>
 
-// Define Some Constants
-const int mWidth = 800; //1280;
-const int mHeight = 600; // 800;
 
-#endif // ~AVS_CPP Header
+// Local Library Headers
+#include "render.hpp"
+#include "shader.hpp"
+#include "mesh.hpp"
+#include "controls.hpp"
+
+namespace AVSCPP {
+
+class CoveragePlanner {
+    public:
+
+        CoveragePlanner() {};
+        CoveragePlanner(std::vector<AVSCPP::Mesh*> modelMesh);
+        
+        std::vector<glm::vec3> generatePositions(GLfloat meterResolution);
+        std::vector<float> generateOrientations(GLfloat radiansResolution);
+
+        void addViewpoint(glm::mat4 vp) {viewpoints.push_back(vp);}
+        std::vector<glm::mat4>& getViewpoints(){return viewpoints;}
+    
+    private:
+
+        float boundingBoxScaler = 1.2;
+        std::vector<GLfloat> boundingBox = {
+            std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // xmin xmax
+            std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // ymin ymax
+            std::numeric_limits<float>::max(), std::numeric_limits<float>::min()};// zmin zmax
+
+        std::vector<glm::mat4> viewpoints; // Viewpoint sampling outputs
+
+};
+
+}
+
+#endif

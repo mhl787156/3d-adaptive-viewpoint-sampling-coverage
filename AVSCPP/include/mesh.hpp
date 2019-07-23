@@ -48,6 +48,8 @@ namespace AVSCPP
             }
             return size;
         }
+
+        std::vector<GLfloat> getBoundingBox(std::vector<GLfloat> bounds);
     private:
 
         // Disable Copying and Assignment

@@ -35,5 +35,5 @@ void main()
 
   vec4 worldSpc = invViewMatrix * view_space_position;
   
-  worldSpace = ivec4(worldSpc.xyz * int(scaleFactor), int(scaleFactor));
+  worldSpace = ivec4(worldSpc.xyz * int(scaleFactor), linear_depth * int(scaleFactor));
 }
