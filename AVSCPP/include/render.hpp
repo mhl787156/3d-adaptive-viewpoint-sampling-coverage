@@ -71,15 +71,19 @@ class Renderer {
         AVSCPP::Shader* normalShader; // Passthrough camera render shader
         AVSCPP::Shader* backprojectionShader; // Location from depth shader
         AVSCPP::Shader* integerdisplayShader; // Integer location re-pass through shader
+        GLuint texDepthWithCullLocation;
+        GLuint texDepthNoCullLocation;
 
         // Vertex array and buffer objects
         GLuint VertexArrayObject, vbo; // For rendering "point locations" to texture
         GLuint quadVAO, quadVBO; // Target quad and buffer for rendering mesh to texture
 
         // Framebuffers
-        GLuint framebuffer1; // Initial framebuffer for pass through render
+        GLuint framebuffer1a; // Initial framebuffer for pass through render
         GLuint texColorBuffer; // Texture for collect colour information in framebuffer1
         GLuint texDepthBuffer; // Texture for collect depth information of render in framebuffer1
+        GLuint framebuffer1b;
+        GLuint texDepthBufferNoCull;
         GLuint framebuffer2; // 2nd framebuffer for collection position information for each rendered pixel
         GLuint projtexColorBuffer; // Texture for collecting x,y,z position as scaled integers (could not pass data back as floats due to truncation)
 

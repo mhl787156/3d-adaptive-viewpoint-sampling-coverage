@@ -122,7 +122,7 @@ int main(int argc, char * argv[]) {
 std::vector<AVSCPP::Mesh*> loadMeshes() {
     std::vector<AVSCPP::Mesh*> meshes;
 
-    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane.obj";
+    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane3.obj";
     AVSCPP::Mesh* modelPoints = new AVSCPP::Mesh(modelPath);
     glm::mat4 locmat = glm::mat4(1.0);
     locmat[3] = glm::vec4(0.0, 0.0, 0.0, 1.0);

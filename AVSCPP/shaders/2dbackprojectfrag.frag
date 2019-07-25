@@ -4,7 +4,8 @@ out ivec4 worldSpace;
 in vec2 v_fov_scale;
 in vec2 TexCoords;
 
-uniform sampler2D screenTexture;
+uniform sampler2D texDepthWithCull;
+uniform sampler2D texDepthNoCull;
 uniform mat4 invViewMatrix;
 uniform float scaleFactor;
 uniform vec2 cameraNearFarPlane;
@@ -15,9 +16,15 @@ void main()
   vec2 depthrange = vec2(0.1, 100.0);// cameraNearFarPlane;
 
   // 0.1 is zNear, 100 is zFar
-  float depth = texture(screenTexture, TexCoords).x;
-  float depthsample = 2.0 * depth - 1.0;
-  float linear_depth = 2.0 * depthrange.x * depthrange.y / (depthrange.x + depthrange.y - depthsample * (depthrange.y - depthrange.x));
+  float depth = 2.0 * texture(texDepthWithCull, TexCoords).x - 1.0;
+  float depthNoCull = 2.0 * texture(texDepthNoCull, TexCoords).x - 1.0;
+
+  float linear_depth = 2.0 * depthrange.x * depthrange.y / (depthrange.x + depthrange.y - depth * (depthrange.y - depthrange.x));
+  float linear_depth_no_cull = 2.0 * depthrange.x * depthrange.y / (depthrange.x + depthrange.y - depthNoCull * (depthrange.y - depthrange.x));
+
+  if ( abs(linear_depth - linear_depth_no_cull) > 0.001 ) {
+    linear_depth = cameraNearFarPlane.y; // max depth
+  }
 
   // remap Texcoords from [0, 1] to [-1, 1]
   vec2 remapscreencoord = TexCoords * 2.0 - 1.0;

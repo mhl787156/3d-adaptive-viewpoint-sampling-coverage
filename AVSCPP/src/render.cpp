@@ -81,7 +81,7 @@ void Renderer::setShaders(AVSCPP::Shader *_normalShader,
     normalShader = _normalShader;
     backprojectionShader = _backprojectionShader;
     integerdisplayShader = _integerdisplayShader;
-    
+
     backprojectionShader->activate();
     float half_y_near_plane = glm::tan(camera.getfov() / 2.0);
     glm::vec2 hsnp = glm::vec2(half_y_near_plane , half_y_near_plane / camera.getAspect()); //  / camera.getAspect();
@@ -89,13 +89,15 @@ void Renderer::setShaders(AVSCPP::Shader *_normalShader,
     backprojectionShader->bind("screenTexture", 0);
     backprojectionShader->bind("scaleFactor", positionShaderScaler);
     backprojectionShader->bind("cameraNearFarPlane", camera.getDisplayRange());
+    texDepthWithCullLocation = glGetUniformLocation(backprojectionShader->get(), "texDepthWithCull");
+    texDepthNoCullLocation = glGetUniformLocation(backprojectionShader->get(), "texDepthNoCull");
 }
 
 
 void Renderer::initFrameBuffers() {
     // Create frame buffer
-    glGenFramebuffers(1, &framebuffer1);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1);    
+    glGenFramebuffers(1, &framebuffer1a);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1a);    
 
     // generate texture
     glGenTextures(1, &texColorBuffer);
@@ -116,6 +118,21 @@ void Renderer::initFrameBuffers() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texDepthBuffer, 0);
 
+    // Check framebuffer is correctly set up then unbind the framebuffer
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	    printf("ERROR::FRAMEBUFFER:: Framebuffer1 is not complete!");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+
+    // Create frame buffer for no cull
+    glGenFramebuffers(1, &framebuffer1b);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1b);  
+    glGenTextures(1, &texDepthBufferNoCull);
+    glBindTexture(GL_TEXTURE_2D, texDepthBufferNoCull);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0); 
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texDepthBufferNoCull, 0);
     // Check framebuffer is correctly set up then unbind the framebuffer
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	    printf("ERROR::FRAMEBUFFER:: Framebuffer1 is not complete!");
@@ -160,30 +177,49 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     // input
     // -----
     processInput(camera);
+    // Compute the MVP matrix from keyboard and mouse input
+    camera.computeMatricesFromInputs();
 
     // First pass into framebuffer with original shaders
     // ------
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1a);
     glViewport(0, 0, mWidth, mHeight);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // we're not using the stencil buffer now
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ); // we're not using the stencil buffer now
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE); // First pass with cull
 
     // Activate Shader
     normalShader->activate(); // glUseProgram
     normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
-
-    // Compute the MVP matrix from keyboard and mouse input
-    camera.computeMatricesFromInputs();
     
     // Draw Meshes
     for(AVSCPP::Mesh* m: meshes){
         glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
         normalShader->bind("MVP", MVP);
+        // normalShader->bind("cullface", false);
         m->draw(normalShader->get());
-    } 
-    
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1b);
+    glViewport(0, 0, mWidth, mHeight);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ); // we're not using the stencil buffer now
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE); // Second pass without cull
+
+    // Activate Shader
+    normalShader->activate(); // glUseProgram
+    normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
+
+    // Draw Mesh 2nd time
+    for(AVSCPP::Mesh* m: meshes){
+        glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
+        normalShader->bind("MVP", MVP);
+        // normalShader->bind("cullface", true);
+        m->draw(normalShader->get());
+    }
+
     // 2nd pass backprojection
     // -----------
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
@@ -193,9 +229,14 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     
     backprojectionShader->activate();
     backprojectionShader->bind("invViewMatrix", camera.getInverseViewMatrix());
+    glUniform1i(texDepthWithCullLocation, 0);
+    glUniform1i(texDepthNoCullLocation,  1);
 
     glBindVertexArray(quadVAO);
+    glActiveTexture(GL_TEXTURE0 + 0); // Texture unit 0
     glBindTexture(GL_TEXTURE_2D, texDepthBuffer);	// use the depth attachment texture as the texture of the quad plane
+    glActiveTexture(GL_TEXTURE0 + 1); // Texture unit 1
+    glBindTexture(GL_TEXTURE_2D, texDepthBufferNoCull);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindTexture(GL_TEXTURE_2D, projtexColorBuffer);
@@ -210,10 +251,12 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
         }
     }
 
-    glBindVertexArray(VertexArrayObject);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0,  numPixels * 4 * sizeof(GLint), pixelArray);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    if (glfwGetKey(mWindow, GLFW_KEY_Z) != GLFW_PRESS) {
+        glBindVertexArray(VertexArrayObject);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferSubData(GL_ARRAY_BUFFER, 0,  numPixels * 4 * sizeof(GLint), pixelArray);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
 
     if(renderToScreen) {
         // third pass (render screen)
@@ -221,7 +264,8 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
         glViewport(0, 0, mWidth, mHeight);
         glClearColor(0.0, 0.0, 0.5, 0.0); 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDisable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
 
         if (glfwGetKey(mWindow, GLFW_KEY_X) != GLFW_PRESS) {
             normalShader->activate(); // glUseProgram
@@ -229,6 +273,8 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
             for(AVSCPP::Mesh* m: meshes){
                 glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
                 normalShader->bind("MVP", MVP);
+                normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 0.0));
+                // normalShader->bind("cullface", true);
                 m->draw(normalShader->get());
             } 
         }
@@ -241,8 +287,8 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glVertexAttribPointer(0, 4, GL_INT, GL_FALSE, 0, (void*)0);
         glEnableVertexAttribArray(0);  
-        
         glDrawArrays(GL_POINTS, 0, numPixels);
+
         glfwSwapBuffers(mWindow);
         glfwPollEvents();
     }
@@ -360,13 +406,13 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
             for(AVSCPP::Mesh* m: meshes){
                 glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
                 normalShader->bind("MVP", MVP);
+                normalShader->bind("cullface", glIsEnabled(GL_CULL_FACE));
                 m->draw(normalShader->get());
             } 
         }
 
-
-
         normalShader->bind("in_colour", glm::vec4(0.0, 1.0, 0.0, 1.0));
+        normalShader->bind("cullface", glIsEnabled(GL_CULL_FACE));
         glLineWidth(10.0);
         glBindVertexArray(vpVAO1);
         glBindBuffer(GL_ARRAY_BUFFER, vpVBO1);
@@ -375,6 +421,7 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
         glDrawArrays(GL_LINES, 0, lines.size());
 
         normalShader->bind("in_colour", glm::vec4(0.5, 0.5, 0.5, 1.0));
+        normalShader->bind("cullface", glIsEnabled(GL_CULL_FACE));
         glLineWidth(1.0);
         glBindVertexArray(vpVAO2);
         glBindBuffer(GL_ARRAY_BUFFER, vpVBO2);
