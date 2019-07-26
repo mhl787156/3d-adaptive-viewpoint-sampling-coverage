@@ -28,11 +28,15 @@ CoveragePlanner::CoveragePlanner(std::vector<AVSCPP::Mesh*> modelMesh) {
 }
 
 std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resolution) {
+    return generatePositions(resolution, resolution, resolution);
+}
+
+std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resX, GLfloat resY, GLfloat resZ) {
     std::vector<glm::vec3> viewpoint_samples;
 
-    for(float x = boundingBox[0]; x <= boundingBox[1]; x+=resolution) {
-        for(float y = boundingBox[2]; y <= boundingBox[3]; y+=resolution) {
-            for(float z = boundingBox[4]; z <= boundingBox[5]; z+=resolution) {
+    for(float x = boundingBox[0]; x <= boundingBox[1]; x+=resX) {
+        for(float y = boundingBox[2]; y <= boundingBox[3]; y+=resY) {
+            for(float z = boundingBox[4]; z <= boundingBox[5]; z+=resZ) {
                 viewpoint_samples.push_back(glm::vec3(x, y, z));
             }
         }
@@ -43,7 +47,7 @@ std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resolution) {
 
 std::vector<float> CoveragePlanner::generateOrientations(GLfloat resolution) {
     std::vector<float> orientation_samples;
-    for(float yaw = 0; yaw <= 2*M_PI; yaw+=resolution) {
+    for(float yaw = 0.0; yaw <= 2*M_PI; yaw+=resolution) {
         orientation_samples.push_back(yaw);
     }
     return orientation_samples;

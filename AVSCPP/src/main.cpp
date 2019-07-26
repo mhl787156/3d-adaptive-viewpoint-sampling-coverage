@@ -1,6 +1,9 @@
 // Local Headers
 #include "main.hpp"
 
+#include <chrono>
+#include <thread>
+
 // // Opencv
 // #include <opencv2/opencv.hpp>
 // #include <opencv2/core.hpp>
@@ -9,6 +12,7 @@
 bool renderToScreen = false;
 bool setDebug = false;
 bool renderTesting = false; 
+int waitMillis = 0;
 
 // Function declarations
 std::vector<AVSCPP::Mesh*> loadMeshes();
@@ -20,6 +24,7 @@ int main(int argc, char * argv[]) {
         if(std::string(argv[i]) == "-d") {setDebug = true; continue;}
         if(std::string(argv[i]) == "-s") {renderToScreen = true; continue;}
         if(std::string(argv[i]) == "-rt") {renderTesting = true; continue;}
+        if(std::string(argv[i]) == "-w") {waitMillis = std::stoi(std::string(argv[++i])); continue;}
     }
     
     // Init OpenGL
@@ -43,20 +48,22 @@ int main(int argc, char * argv[]) {
 
     AVSCPP::CoveragePlanner planner(meshes);
     // Generate Camera Locations
-    std::vector<glm::vec3> viewpoint_samples = planner.generatePositions(5.0f);
-    std::vector<GLfloat> orientation_samples = planner.generateOrientations(M_PI);
+    std::vector<glm::vec3> viewpoint_samples = planner.generatePositions(10.0f, 3.0f, 10.0f);
+
+    std::vector<GLfloat> orientation_samples = planner.generateOrientations(M_PI/8);
     
     glm::mat4 drone2Camera = glm::mat4(1.0);
-    float cameraFocalLength = 10;
+    float cameraMaxDist = 5;
     float minCameraDepth = 1;
 
-    if(renderTesting){
+    if(renderTesting){ // Just for rendering only!
         while(renderer.canRender()) {
         renderer.getRenderedPositions(camera, meshes);
         }
         return EXIT_SUCCESS;
     }
 
+    // Normal Operataion
     for(glm::vec3 pos: viewpoint_samples) {
         // For each camera location
 
@@ -64,13 +71,10 @@ int main(int argc, char * argv[]) {
         glm::mat4 bestyawpose = glm::mat4(1.0);
 
         for(float yaw: orientation_samples) {
-            
             // For each discretised camera angle
-            glm::mat4 dronePose = glm::yawPitchRoll((float)M_PI/2, yaw, 0.0f);
+            glm::mat4 dronePose = glm::yawPitchRoll(yaw, 0.0f, 0.0f);
             dronePose[3] = glm::vec4(pos, 1.0);
-
-            glm::mat4 cameraPose = drone2Camera * dronePose; 
-            camera.setViewMatrix(cameraPose);
+            camera.setViewMatrixFromPoseMatrix(dronePose);
 
             GLfloat* pixelLocs;
             if(renderer.canRender()) {
@@ -87,20 +91,29 @@ int main(int argc, char * argv[]) {
                 float depth = pixelLocs[i*4+3]; // Depth Data
                 if(depth < minDepth){minDepth = depth;}
             }
+
+            // printf("depth: %f, mindepth: %f, pose %s, %f\n", minDepth, minYawDepth, glm::to_string(pos).c_str(), yaw);
             
             if (minDepth < minYawDepth && minDepth > minCameraDepth) {
                 minYawDepth = minDepth;
                 bestyawpose = dronePose;
             }
 
-            // free(pixelLocs);
             // planner.addViewpoint(dronePose);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMillis));
         }
         
         // If all greater than some threshold, remove camera location, continue
         // This does distance and collision filtering
-        if(minYawDepth < cameraFocalLength) {
+        if(minYawDepth < cameraMaxDist) {
             planner.addViewpoint(bestyawpose);
+            camera.setViewMatrixFromPoseMatrix(bestyawpose);
+            renderer.getRenderedPositions(camera, meshes);
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitMillis*2));
+        }
+
+        if(setDebug) {
+            printf("-----\n");
         }
 
     }
@@ -117,16 +130,14 @@ int main(int argc, char * argv[]) {
     return EXIT_SUCCESS;
 }
 
-
-
 std::vector<AVSCPP::Mesh*> loadMeshes() {
     std::vector<AVSCPP::Mesh*> meshes;
 
     std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane3.obj";
     AVSCPP::Mesh* modelPoints = new AVSCPP::Mesh(modelPath);
-    glm::mat4 locmat = glm::mat4(1.0);
-    locmat[3] = glm::vec4(0.0, 0.0, 0.0, 1.0);
-    modelPoints->setModelMatrix(locmat);
+    // glm::mat4 modelMat = glm::yawPitchRoll(0.0f, (float)M_PI/2, 0.0f);
+    glm::mat4 modelMat = glm::mat4(1.0);
+    modelPoints->setModelMatrix(modelMat);
     meshes.push_back(modelPoints);
 
     // std::string const floorPath = PROJECT_SOURCE_DIR "/resources/models/plane.obj";

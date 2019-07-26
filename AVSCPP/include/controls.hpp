@@ -6,6 +6,7 @@
 // Include GLM
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace AVSCPP {
 
@@ -29,6 +30,8 @@ namespace AVSCPP {
             void enableControl() {mouseControl = true;}
             void disableControl() {mouseControl = false;}
             void setViewMatrix(glm::mat4 vm);
+            void setViewMatrixFromPoseMatrix(glm::mat4 pose);
+            void setViewMatrixFromPositionAngles(glm::vec3 position, glm::vec3 hvrangles);
             void resetView();
             glm::vec3 getPosition() {return glm::vec3(ViewMatrix[3]);}
             float getAspect() {return aspect;}

@@ -13,7 +13,7 @@ uniform vec2 cameraNearFarPlane;
 void main()
 {
   
-  vec2 depthrange = vec2(0.1, 100.0);// cameraNearFarPlane;
+  vec2 depthrange = cameraNearFarPlane;// cameraNearFarPlane;
 
   // 0.1 is zNear, 100 is zFar
   float depth = 2.0 * texture(texDepthWithCull, TexCoords).x - 1.0;
@@ -23,7 +23,7 @@ void main()
   float linear_depth_no_cull = 2.0 * depthrange.x * depthrange.y / (depthrange.x + depthrange.y - depthNoCull * (depthrange.y - depthrange.x));
 
   if ( abs(linear_depth - linear_depth_no_cull) > 0.001 ) {
-    linear_depth = cameraNearFarPlane.y; // max depth
+    linear_depth = depthrange.y; // max depth
   }
 
   // remap Texcoords from [0, 1] to [-1, 1]

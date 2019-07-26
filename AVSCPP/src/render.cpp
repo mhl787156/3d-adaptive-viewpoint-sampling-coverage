@@ -1,5 +1,7 @@
 #include "render.hpp"
 
+#include <glm/gtx/euler_angles.hpp>
+
 using namespace AVSCPP;
 
 Renderer::Renderer(GLint _mWidth, GLint _mHeight) {
@@ -86,38 +88,24 @@ void Renderer::setShaders(AVSCPP::Shader *_normalShader,
     float half_y_near_plane = glm::tan(camera.getfov() / 2.0);
     glm::vec2 hsnp = glm::vec2(half_y_near_plane , half_y_near_plane / camera.getAspect()); //  / camera.getAspect();
     backprojectionShader->bind("halfSizeNearPlane", hsnp);
-    backprojectionShader->bind("screenTexture", 0);
+    backprojectionShader->bind("texDepthWithCull", 0);
+    backprojectionShader->bind("texDepthNoCull", 1);
     backprojectionShader->bind("scaleFactor", positionShaderScaler);
     backprojectionShader->bind("cameraNearFarPlane", camera.getDisplayRange());
-    texDepthWithCullLocation = glGetUniformLocation(backprojectionShader->get(), "texDepthWithCull");
-    texDepthNoCullLocation = glGetUniformLocation(backprojectionShader->get(), "texDepthNoCull");
 }
 
 
 void Renderer::initFrameBuffers() {
-    // Create frame buffer
+    // Create frame buffer for with cull
     glGenFramebuffers(1, &framebuffer1a);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1a);    
-
-    // generate texture
-    glGenTextures(1, &texColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, texColorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
     glGenTextures(1, &texDepthBuffer);
     glBindTexture(GL_TEXTURE_2D, texDepthBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
-
-    // attach it to currently bound framebuffer object
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texDepthBuffer, 0);
-
     // Check framebuffer is correctly set up then unbind the framebuffer
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	    printf("ERROR::FRAMEBUFFER:: Framebuffer1 is not complete!");
@@ -180,7 +168,7 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     // Compute the MVP matrix from keyboard and mouse input
     camera.computeMatricesFromInputs();
 
-    // First pass into framebuffer with original shaders
+    // First pass into of depth into framebuffer with original shaders and face culling
     // ------
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1a);
     glViewport(0, 0, mWidth, mHeight);
@@ -201,6 +189,7 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
         m->draw(normalShader->get());
     }
 
+    // Second pass of depth into framebuffer with original shaders and no face culling
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1b);
     glViewport(0, 0, mWidth, mHeight);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -220,7 +209,7 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
         m->draw(normalShader->get());
     }
 
-    // 2nd pass backprojection
+    // 3rd pass backprojection
     // -----------
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer2);
     glViewport(0, 0, mWidth, mHeight);
@@ -229,8 +218,6 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     
     backprojectionShader->activate();
     backprojectionShader->bind("invViewMatrix", camera.getInverseViewMatrix());
-    glUniform1i(texDepthWithCullLocation, 0);
-    glUniform1i(texDepthNoCullLocation,  1);
 
     glBindVertexArray(quadVAO);
     glActiveTexture(GL_TEXTURE0 + 0); // Texture unit 0
@@ -333,22 +320,28 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     
     glfwShowWindow(mWindow);
     glfwFocusWindow(mWindow);
-    camera.enableControl(); 
-    
+    camera.enableControl();    
+
+    float axisLength = camera.getDisplayRange()[1];
+    std::vector<glm::vec3> axis;
+    axis.push_back(glm::vec3(0.0, 0.0, 0.0));
+    axis.push_back(glm::vec3(axisLength, 0.0, 0.0));
+    axis.push_back(glm::vec3(0.0, 0.0, 0.0));
+    axis.push_back(glm::vec3(0.0, axisLength, 0.0));
+    axis.push_back(glm::vec3(0.0, 0.0, 0.0));
+    axis.push_back(glm::vec3(0.0, 0.0, axisLength));
 
     std::vector<glm::vec3> vps;
     std::vector<glm::vec3> lines;
     std::vector<glm::vec3> xylines;
-
     for(glm::mat4 vp: viewpoints) {
         glm::vec3 cameraLoc = glm::vec3(vp[3]);
-        glm::vec4 unitVectorLoc = vp * glm::vec4(0.0, 0.0, -1.0, 1.0);
+
+        float yaw = atan2(-vp[0][2], sqrt( pow(vp[1][2], 2.0) + pow(vp[2][2], 2.0) ) );
+
+        glm::vec4 unitVectorLoc = vp * glm::vec4(0.0, 0.0, 0.5, 1.0);
         lines.push_back(cameraLoc);
         lines.push_back(glm::vec3(unitVectorLoc));
-        
-        unitVectorLoc = vp * glm::vec4(0.0, 0.0, 0.5, 1.0);
-        xylines.push_back(cameraLoc);
-        xylines.push_back(glm::vec3(unitVectorLoc));
 
         unitVectorLoc = vp * glm::vec4(0.0, 0.5, 0.0, 1.0);
         xylines.push_back(cameraLoc);
@@ -358,13 +351,10 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
         xylines.push_back(cameraLoc);
         xylines.push_back(glm::vec3(unitVectorLoc));
 
-        // printf("%s -> %s\n", glm::to_string(cameraLoc).c_str(), glm::to_string(unitVectorLoc).c_str());
-        // printf("%s\n", glm::to_string(vp).c_str());
-
         vps.push_back(glm::vec3(vp[3]));
     }
 
-    GLuint vpVAO1, vpVAO2, vpVBO1, vpVBO2;
+    GLuint vpVAO1, vpVAO2, vpVBO1, vpVBO2, axisVBO;
     glGenVertexArrays(1, &vpVAO1);
     glBindVertexArray(vpVAO1);
     glGenBuffers(1, &vpVBO1);
@@ -376,6 +366,11 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     glGenBuffers(1, &vpVBO2);
     glBindBuffer(GL_ARRAY_BUFFER, vpVBO2);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * xylines.size(), &xylines[0], GL_STATIC_DRAW);
+
+    glBindVertexArray(axisVBO);
+    glGenBuffers(1, &axisVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * axis.size(), &axis[0], GL_STATIC_DRAW);
 
     glClearColor(0.0, 0.0, 0.5, 0.0); 
     
@@ -399,20 +394,20 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
 
         normalShader->activate(); // glUseProgram
 
+        glm::mat4 VP = camera.getVPMatrix();
 
         // Draw Meshes
-        if (glfwGetKey(mWindow, GLFW_KEY_X) != GLFW_PRESS) {
-            normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
-            for(AVSCPP::Mesh* m: meshes){
-                glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
-                normalShader->bind("MVP", MVP);
-                normalShader->bind("cullface", glIsEnabled(GL_CULL_FACE));
+        normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
+        for(AVSCPP::Mesh* m: meshes){
+            glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
+            normalShader->bind("MVP", MVP);
+            if (glfwGetKey(mWindow, GLFW_KEY_X) != GLFW_PRESS) {
                 m->draw(normalShader->get());
-            } 
-        }
+            }
+        } 
 
+        normalShader->bind("MVP", VP);
         normalShader->bind("in_colour", glm::vec4(0.0, 1.0, 0.0, 1.0));
-        normalShader->bind("cullface", glIsEnabled(GL_CULL_FACE));
         glLineWidth(10.0);
         glBindVertexArray(vpVAO1);
         glBindBuffer(GL_ARRAY_BUFFER, vpVBO1);
@@ -421,13 +416,16 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
         glDrawArrays(GL_LINES, 0, lines.size());
 
         normalShader->bind("in_colour", glm::vec4(0.5, 0.5, 0.5, 1.0));
-        normalShader->bind("cullface", glIsEnabled(GL_CULL_FACE));
         glLineWidth(1.0);
         glBindVertexArray(vpVAO2);
         glBindBuffer(GL_ARRAY_BUFFER, vpVBO2);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
         glDrawArrays(GL_LINES, 0, xylines.size());
+
+        glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glDrawArrays(GL_LINES, 0, axis.size());
 
         glfwSwapBuffers(mWindow);
         glfwPollEvents();

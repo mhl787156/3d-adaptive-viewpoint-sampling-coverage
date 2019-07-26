@@ -44,8 +44,8 @@
 #include "avscpp.hpp"
 
 // Define Some Constants
-const int mWidth = 800; //1280;
-const int mHeight = 600; // 800;
+const int mWidth = 1280;// 800; //1280;
+const int mHeight = 800; // 600; // 800;
 
 
 #endif // ~AVS_CPP Header
