@@ -60,6 +60,9 @@ int main(int argc, char * argv[]) {
     // passing an empty vector will cause the full Mesh bounding box to be used.
     planner.sampleViewpoints(std::vector<float>(), 10.0f, 3.0f, 10.0f, M_PI/8);
 
+
+
+
     // Calculate best Path through using heuristic and maybe some more rendering
     std::vector<glm::mat4> viewpoints = planner.getViewpoints();
     std::vector<glm::vec3> seenpoints = planner.getSeenpoints();

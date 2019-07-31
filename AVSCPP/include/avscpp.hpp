@@ -35,6 +35,7 @@ class CoveragePlanner {
         CoveragePlanner() {};
         CoveragePlanner(AVSCPP::Renderer& renderer, AVSCPP::CameraControl& camera, std::vector<AVSCPP::Mesh*> modelMesh);
 
+        // Viewpoint Generation
         void sampleViewpoints(std::vector<GLfloat> boundingBox,
                               GLfloat resX, GLfloat resY, 
                               GLfloat resZ, GLfloat resRadians);
@@ -48,6 +49,14 @@ class CoveragePlanner {
         std::vector<glm::mat4>& getViewpoints(){return viewpoints;}
         std::vector<glm::vec3>& getSeenpoints(){return seenLocations;}
 
+        // Path Planning
+        void calculateTrajectories(std::vector<glm::vec3> initialPositions);
+
+        void addTrajectoryPoint(int i) {trajectory.push_back(i);}
+        std::vector<GLint> getTrajectories(){return trajectory;}
+
+
+        // General Setters and Getters
         void setDepthRange(GLfloat min, GLfloat max) {depthMin=min;depthMax=max;}
         void setDebug(bool d) {debug = d;}
     
@@ -68,6 +77,8 @@ class CoveragePlanner {
 
         std::vector<glm::mat4> viewpoints; // Viewpoint sampling outputs
         std::vector<glm::vec3> seenLocations; // Points outputted by the rendering x, y, z, depthFromViewpoint
+
+        std::vector<GLint> trajectory; // Indexes into viewpoints
 
         bool debug = false;
 

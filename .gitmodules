@@ -22,3 +22,6 @@
 	path = external/bullet
     url = https://github.com/bulletphysics/bullet3.git
     branch = master
+[submodule "external/LKH"]
+	path = external/LKH
+	url = https://git.brl.ac.uk/mh2-li/lkh-solver.git

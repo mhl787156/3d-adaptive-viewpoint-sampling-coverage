@@ -137,3 +137,7 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
     }
 }
 
+void CoveragePlanner::calculateTrajectories(std::vector<glm::vec3> initialPositions) {
+    
+}
+
