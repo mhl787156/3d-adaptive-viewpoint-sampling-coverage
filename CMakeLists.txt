@@ -23,10 +23,7 @@ option(BUILD_OPENGL3_DEMOS OFF)
 option(BUILD_UNIT_TESTS OFF)
 add_subdirectory(external/bullet)
 
-add_custom_target( LKH
-                   COMMAND make
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/external/LKH/
-)
+add_subdirectory(external/LKH)
 
 find_package( OpenCV REQUIRED )
 
