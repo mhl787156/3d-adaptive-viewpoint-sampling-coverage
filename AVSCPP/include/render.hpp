@@ -22,9 +22,6 @@
 #include "mesh.hpp"
 #include "controls.hpp"
 
-
-
-
 namespace AVSCPP {
 
 class Renderer {
@@ -38,9 +35,13 @@ class Renderer {
                         AVSCPP::Shader *_backprojectionShader,
                         AVSCPP::Shader *_integerdisplayShader,
                         AVSCPP::CameraControl &camera);
-        GLfloat* getRenderedPositions(AVSCPP::CameraControl &camera, std::vector<AVSCPP::Mesh*> modelMesh);
+        GLfloat* getRenderedPositions(AVSCPP::CameraControl &camera, 
+                                      std::vector<AVSCPP::Mesh*> modelMesh);
 
-        void displayViewpoints(AVSCPP::CameraControl &camera, std::vector<glm::mat4> &viewpoints, std::vector<AVSCPP::Mesh*> modelMesh);
+        void displayViewpoints(AVSCPP::CameraControl &camera, 
+                               std::vector<glm::mat4> &viewpoints,
+                               std::vector<glm::vec3> &seenPoints,
+                               std::vector<AVSCPP::Mesh*> modelMesh);
 
         bool canRender() {
             return !glfwWindowShouldClose(mWindow);

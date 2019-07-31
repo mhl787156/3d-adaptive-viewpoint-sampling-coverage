@@ -316,6 +316,7 @@ GLint Renderer::pixelIndex(GLint *b, int w, int h, int c) {
 
 void Renderer::displayViewpoints(AVSCPP::CameraControl &camera, 
                                  std::vector<glm::mat4> &viewpoints,
+                                 std::vector<glm::vec3> &seenPoints,
                                  std::vector<AVSCPP::Mesh*> meshes) {
     
     glfwShowWindow(mWindow);
@@ -372,6 +373,13 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * axis.size(), &axis[0], GL_STATIC_DRAW);
 
+    GLuint spVAO, spVBO;
+    glGenVertexArrays(1, &spVAO);
+    glBindVertexArray(spVAO);
+    glGenBuffers(1, &spVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, spVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * seenPoints.size(), &seenPoints[0], GL_STATIC_DRAW);
+
     glClearColor(0.0, 0.0, 0.5, 0.0); 
     
     glEnable(GL_DEPTH_TEST);
@@ -405,6 +413,15 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
                 m->draw(normalShader->get());
             }
         } 
+
+        // Draw Seen Points
+        normalShader->bind("MVP", VP);
+        normalShader->bind("in_colour", glm::vec4(1.0, 1.0, 0.0, 1.0));
+        glBindVertexArray(spVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, spVBO);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+        glDrawArrays(GL_POINTS, 0, seenPoints.size());
 
         normalShader->bind("MVP", VP);
         normalShader->bind("in_colour", glm::vec4(0.0, 1.0, 0.0, 1.0));

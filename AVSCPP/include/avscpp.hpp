@@ -46,6 +46,7 @@ class CoveragePlanner {
 
         void addViewpoint(glm::mat4 vp) {viewpoints.push_back(vp);}
         std::vector<glm::mat4>& getViewpoints(){return viewpoints;}
+        std::vector<glm::vec3>& getSeenpoints(){return seenLocations;}
 
         void setDepthRange(GLfloat min, GLfloat max) {depthMin=min;depthMax=max;}
         void setDebug(bool d) {debug = d;}
@@ -66,6 +67,7 @@ class CoveragePlanner {
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min()};// zmin zmax
 
         std::vector<glm::mat4> viewpoints; // Viewpoint sampling outputs
+        std::vector<glm::vec3> seenLocations; // Points outputted by the rendering x, y, z, depthFromViewpoint
 
         bool debug = false;
 

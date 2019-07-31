@@ -76,6 +76,8 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
     // Normal Operataion
     for(glm::vec3 pos: viewpoint_samples) {
         
+        GLfloat* pixelLocs;
+
         // For each camera location
         float minYawDepth = 100000.0;
         glm::mat4 bestyawpose = glm::mat4(1.0);
@@ -86,7 +88,6 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
             dronePose[3] = glm::vec4(pos, 1.0);
             camera->setViewMatrixFromPoseMatrix(dronePose);
 
-            GLfloat* pixelLocs;
             if(renderer->canRender()) {
                 // Render the camera position
                 // Calculate pixel locations
@@ -118,7 +119,15 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
         if(minYawDepth < depthMax) {
             addViewpoint(bestyawpose);
             camera->setViewMatrixFromPoseMatrix(bestyawpose);
-            renderer->getRenderedPositions(*camera, meshes);
+            
+            // Record points
+            pixelLocs = renderer->getRenderedPositions(*camera, meshes);
+            for(int i = 0; i < renderer->getNumPixels(); i++) {
+                float depth = pixelLocs[i*4 +3];
+                if(depth >= depthMin && depth <= depthMax) {
+                    seenLocations.push_back(glm::vec3(pixelLocs[i*4], pixelLocs[i*4+1], pixelLocs[i*4+2]));
+                }
+            }
         }
 
         if(debug) {
