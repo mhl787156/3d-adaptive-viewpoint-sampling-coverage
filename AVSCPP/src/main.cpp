@@ -45,17 +45,6 @@ int main(int argc, char * argv[]) {
     renderer.initVertexArraysandBuffers();
     renderer.initFrameBuffers();
 
-
-    AVSCPP::CoveragePlanner planner(meshes);
-    // Generate Camera Locations
-    std::vector<glm::vec3> viewpoint_samples = planner.generatePositions(10.0f, 3.0f, 10.0f);
-
-    std::vector<GLfloat> orientation_samples = planner.generateOrientations(M_PI/8);
-    
-    glm::mat4 drone2Camera = glm::mat4(1.0);
-    float cameraMaxDist = 5;
-    float minCameraDepth = 1;
-
     if(renderTesting){ // Just for rendering only!
         while(renderer.canRender()) {
         renderer.getRenderedPositions(camera, meshes);
@@ -63,60 +52,13 @@ int main(int argc, char * argv[]) {
         return EXIT_SUCCESS;
     }
 
-    // Normal Operataion
-    for(glm::vec3 pos: viewpoint_samples) {
-        // For each camera location
 
-        float minYawDepth = 100000.0;
-        glm::mat4 bestyawpose = glm::mat4(1.0);
+    AVSCPP::CoveragePlanner planner(renderer, camera, meshes);
+    planner.setDebug(setDebug);
 
-        for(float yaw: orientation_samples) {
-            // For each discretised camera angle
-            glm::mat4 dronePose = glm::yawPitchRoll(yaw, 0.0f, 0.0f);
-            dronePose[3] = glm::vec4(pos, 1.0);
-            camera.setViewMatrixFromPoseMatrix(dronePose);
-
-            GLfloat* pixelLocs;
-            if(renderer.canRender()) {
-                // Render the camera position
-                // Calculate pixel locations
-                pixelLocs = renderer.getRenderedPositions(camera, meshes);
-            } else {
-                break;
-            }
-            
-            // Store minimum depth
-            float minDepth = 10000000.0f;
-            for(int i = 0; i < renderer.getNumPixels(); i++) {
-                float depth = pixelLocs[i*4+3]; // Depth Data
-                if(depth < minDepth){minDepth = depth;}
-            }
-
-            // printf("depth: %f, mindepth: %f, pose %s, %f\n", minDepth, minYawDepth, glm::to_string(pos).c_str(), yaw);
-            
-            if (minDepth < minYawDepth && minDepth > minCameraDepth) {
-                minYawDepth = minDepth;
-                bestyawpose = dronePose;
-            }
-
-            // planner.addViewpoint(dronePose);
-            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMillis));
-        }
-        
-        // If all greater than some threshold, remove camera location, continue
-        // This does distance and collision filtering
-        if(minYawDepth < cameraMaxDist) {
-            planner.addViewpoint(bestyawpose);
-            camera.setViewMatrixFromPoseMatrix(bestyawpose);
-            renderer.getRenderedPositions(camera, meshes);
-            std::this_thread::sleep_for(std::chrono::milliseconds(waitMillis*2));
-        }
-
-        if(setDebug) {
-            printf("-----\n");
-        }
-
-    }
+    // Planner renders a set of viewpoints using a default resolution
+    // passing an empty vector will cause the full Mesh bounding box to be used.
+    planner.sampleViewpoints(nullptr, 10.0f, 3.0f, 10.0f, M_PI/8);
 
     // Calculate best Path through using heuristic and maybe some more rendering
     std::vector<glm::mat4> viewpoints = planner.getViewpoints();
