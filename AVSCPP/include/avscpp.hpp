@@ -26,6 +26,7 @@
 #include "shader.hpp"
 #include "mesh.hpp"
 #include "controls.hpp"
+#include "utils.hpp"
 
 namespace AVSCPP {
 
