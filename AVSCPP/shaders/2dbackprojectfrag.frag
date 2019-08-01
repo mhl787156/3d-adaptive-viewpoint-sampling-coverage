@@ -24,7 +24,7 @@ void main()
   float linear_depth_no_cull = 2.0 * depthrange.x * depthrange.y / (depthrange.x + depthrange.y - depthNoCull * (depthrange.y - depthrange.x));
 
   if ( abs(linear_depth - linear_depth_no_cull) > 0.01 ) {
-    linear_depth = depthrange.y; // max depth
+    linear_depth = -depthrange.y; // max depth
   }
 
   // remap Texcoords from [0, 1] to [-1, 1]
@@ -44,9 +44,9 @@ void main()
   vec4 worldSpc = invViewMatrix * view_space_position;
 
   // If Colour texture passed in has negative alpha, then we are on the backface
-  if(texture(texColourNoCull, TexCoords).x > 0.5) {
-    linear_depth = 0;
-  }
+  // if(texture(texColourNoCull, TexCoords).z > 0.5) {
+  //   linear_depth = 0;
+  // }
   
   worldSpace = ivec4(worldSpc.xyz * int(scaleFactor), linear_depth * int(scaleFactor));
 }

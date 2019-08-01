@@ -77,12 +77,10 @@ void Renderer::initVertexArraysandBuffers() {
 }
 
 void Renderer::setShaders(AVSCPP::Shader *_normalShader,
-                        AVSCPP::Shader *_backDetectShader,
                         AVSCPP::Shader *_backprojectionShader,
                         AVSCPP::Shader *_integerdisplayShader,
                         AVSCPP::CameraControl &camera) {
     normalShader = _normalShader;
-    backDetectShader = _backDetectShader;
     backprojectionShader = _backprojectionShader;
     integerdisplayShader = _integerdisplayShader;
 
@@ -95,10 +93,8 @@ void Renderer::setShaders(AVSCPP::Shader *_normalShader,
 
     GLuint t1Location = glGetUniformLocation(backprojectionShader->get(), "texDepthWithCull");
     GLuint t2Location = glGetUniformLocation(backprojectionShader->get(), "texDepthNoCull");
-    GLuint t3Location = glGetUniformLocation(backprojectionShader->get(), "texColourNoCull");
     glUniform1i(t1Location, 0);
     glUniform1i(t2Location, 1);
-    glUniform1i(t3Location, 2);
 }
 
 
@@ -121,13 +117,6 @@ void Renderer::initFrameBuffers() {
     // Create frame buffer for no cull
     glGenFramebuffers(1, &framebuffer1b);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1b);  
-    glGenTextures(1, &texColourBufferNoCull);
-    glBindTexture(GL_TEXTURE_2D, texColourBufferNoCull);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0); 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColourBufferNoCull, 0);
     glGenTextures(1, &texDepthBufferNoCull);
     glBindTexture(GL_TEXTURE_2D, texDepthBufferNoCull);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -199,7 +188,6 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     for(AVSCPP::Mesh* m: meshes){
         glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
         normalShader->bind("MVP", MVP);
-        // normalShader->bind("cullface", false);
         m->draw(normalShader->get());
     }
 
@@ -212,17 +200,14 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     glDisable(GL_CULL_FACE); // Second pass without cull
 
     // Activate Shader
-    backDetectShader->activate(); // Write into alpha channel as negative on backface
+    normalShader->activate(); // Write into alpha channel as negative on backface
 
     // Draw Mesh 2nd time
     for(AVSCPP::Mesh* m: meshes){
         glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
-        backDetectShader->bind("MVP", MVP);
-        m->draw(backDetectShader->get());
-        // normalShader->bind("MVP", MVP);
-        // normalShader->bind("in_colour", glm::vec4(0.0, 0.0, 0.0, 1.0));
-        // // normalShader->bind("cullface", false);
-        // m->draw(normalShader->get());
+        normalShader->bind("MVP", MVP);
+        normalShader->bind("in_colour", glm::vec4(0.0, 0.0, 0.0, 1.0));
+        m->draw(normalShader->get());
     }
 
     // 3rd pass backprojection
@@ -240,8 +225,6 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     glBindTexture(GL_TEXTURE_2D, texDepthBuffer); // use the depth attachment texture as the texture of the quad plane
     glActiveTexture(GL_TEXTURE0+1 ); // Texture unit 1
     glBindTexture(GL_TEXTURE_2D, texDepthBufferNoCull);
-    glActiveTexture(GL_TEXTURE0 + 2); // Texture unit 2
-    glBindTexture(GL_TEXTURE_2D, texColourBufferNoCull);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindTexture(GL_TEXTURE_2D, projtexColorBuffer);
@@ -274,14 +257,10 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
         glCullFace(GL_BACK);
 
         if (glfwGetKey(mWindow, GLFW_KEY_X) != GLFW_PRESS) {
-            // backDetectShader->activate(); // glUseProgram
             normalShader->activate();
             // Draw Meshes
             for(AVSCPP::Mesh* m: meshes){
                 glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
-                // backDetectShader->bind("MVP", MVP);
-                // // normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
-                // m->draw(backDetectShader->get());
                 normalShader->bind("MVP", MVP);
                 normalShader->bind("in_colour", glm::vec4(1.0, 0.0, 0.0, 1.0));
                 m->draw(normalShader->get());
@@ -466,7 +445,7 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
 
         // Draw trajectory lines
         normalShader->bind("MVP", VP);
-        normalShader->bind("in_colour", glm::vec4(0.0, 0.0, 1.0, 1.0));
+        normalShader->bind("in_colour", glm::vec4(1.0, 0.5, 1.0, 1.0));
         glBindVertexArray(tVAO);
         glBindBuffer(GL_ARRAY_BUFFER, tVBO);
         glEnableVertexAttribArray(0);

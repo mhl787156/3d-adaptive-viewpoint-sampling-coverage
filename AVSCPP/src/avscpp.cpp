@@ -110,12 +110,11 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
             float numBackface = 0;
             for(int i = 0; i < renderer->getNumPixels(); i++) {
                 float depth = pixelLocs[i*4+3]; // Depth Data
-                if(depth>0 && depth < minDepth){minDepth = depth;}
-                if(depth<=0){numBackface++;printf("a");}
+                if(depth > 0 && depth < minDepth){minDepth = depth;}
+                if(depth<=0){numBackface++;}
             }
 
             float percentageBackFace = numBackface / renderer->getNumPixels();
-            printf("Percentage Backface = %f\n", percentageBackFace);
 
             if (minDepth < minYawDepth && minDepth > depthMin && percentageBackFace < 0.5) {
                 minYawDepth = minDepth;

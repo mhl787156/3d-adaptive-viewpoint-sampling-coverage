@@ -32,7 +32,6 @@ class Renderer {
         void initVertexArraysandBuffers();
         void initFrameBuffers();
         void setShaders(AVSCPP::Shader *_normalShader,
-                        AVSCPP::Shader *_backDetectShader,
                         AVSCPP::Shader *_backprojectionShader,
                         AVSCPP::Shader *_integerdisplayShader,
                         AVSCPP::CameraControl &camera);
@@ -73,7 +72,6 @@ class Renderer {
 
         // Shaders
         AVSCPP::Shader* normalShader; // Passthrough camera render shader
-        AVSCPP::Shader* backDetectShader; // Passthrough camera with back face detection returning on alpha colour channel
         AVSCPP::Shader* backprojectionShader; // Location from depth shader
         AVSCPP::Shader* integerdisplayShader; // Integer location re-pass through shader
         GLuint texDepthWithCullLocation;
@@ -88,7 +86,6 @@ class Renderer {
         GLuint texColorBuffer; // Texture for collect colour information in framebuffer1
         GLuint texDepthBuffer; // Texture for collect depth information of render in framebuffer1
         GLuint framebuffer1b;
-        GLuint texColourBufferNoCull;
         GLuint texDepthBufferNoCull;
         GLuint framebuffer2; // 2nd framebuffer for collection position information for each rendered pixel
         GLuint projtexColorBuffer; // Texture for collecting x,y,z position as scaled integers (could not pass data back as floats due to truncation)

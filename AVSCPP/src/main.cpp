@@ -58,8 +58,8 @@ int main(int argc, char * argv[]) {
 
     // Planner renders a set of viewpoints using a default resolution
     // passing an empty vector will cause the full Mesh bounding box to be used.
-    // planner.sampleViewpoints(std::vector<float>(), 7.0f, 3.0f, 7.0f, M_PI/8);
-    planner.sampleViewpoints(std::vector<float>(), 100.0f, 100.0f, 100.0f, M_PI/4);
+    planner.sampleViewpoints(std::vector<float>(), 7.0f, 3.0f, 7.0f, M_PI/8);
+    // planner.sampleViewpoints(std::vector<float>(), 100.0f, 100.0f, 100.0f, M_PI/4);
 
     std::vector<glm::vec3> initialPos;
     initialPos.push_back(glm::vec3(10.0, 10.0, 10.0));
@@ -116,10 +116,5 @@ void loadShaders(AVSCPP::Renderer &renderer, AVSCPP::CameraControl &camera) {
     projshader->attach(shaderPath+"2dbackprojectfrag.frag");
     projshader->link();
 
-    AVSCPP::Shader* backFaceNormalShader = new AVSCPP::Shader();
-    // backFaceNormalShader->attach(shaderPath+"simplevertexshader.vert");
-    // backFaceNormalShader->attach(shaderPath+"simpleframentshaderbackdetect.frag");
-    // backFaceNormalShader->link();
-
-    renderer.setShaders(shader, backFaceNormalShader, projshader, intshader, camera);
+    renderer.setShaders(shader, projshader, intshader, camera);
 }

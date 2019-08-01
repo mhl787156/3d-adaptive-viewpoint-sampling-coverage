@@ -27,7 +27,6 @@ namespace AVSCPP
         Shader & link();
 
         // Wrap Calls to glUniform
-        // void bind(unsigned int location, int value);
         void bind(unsigned int location, float value);
         void bind(unsigned int location, glm::vec2 const & value);
         void bind(unsigned int location, glm::vec3 const & value);
