@@ -51,7 +51,7 @@ class CoveragePlanner {
         std::vector<glm::vec3>& getSeenpoints(){return seenLocations;}
 
         // Path Planning
-        void calculateTrajectories(std::vector<glm::vec3> initialPositions);
+        void calculateLKHTrajectories(std::vector<glm::vec3> initialPositions);
 
         void addTrajectoryPoint(int i) {trajectory.push_back(i);}
         std::vector<GLint> getTrajectories(){return trajectory;}
@@ -70,7 +70,7 @@ class CoveragePlanner {
         AVSCPP::CameraControl *camera;
         std::vector<AVSCPP::Mesh*> meshes;
 
-        float boundingBoxScaler = 2.0;
+        float boundingBoxScaler = 1.5;
         std::vector<GLfloat> boundingBox = {
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // xmin xmax
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // ymin ymax

@@ -17,26 +17,38 @@
 #include <fstream>
 #include <limits>
 #include <vector>
+#include <sstream>
+#include <string>
+
+namespace AVSCPP {
 
 class LKHSolver {
-
     public:
+        std::vector<GLint> solve(std::vector<glm::vec3> &points);
+        void setDebug(bool d) {debug = d;}
 
-        std::vector<glm::vec3>& solve(std::vector<glm::vec3> &points);
+        float getTourLength() {return tourLength;}
 
         std::string name = "viewpoints";
-        std::string LKHDir = PROJECT_SOURCE_DIR "/external/LKH";
+        std::string LKHDir = PROJECT_SOURCE_DIR "/external/LKH/";
         std::string LKHExe = "LKH";
-        std::string tmpLKHDir = PROJECT_SOURCE_DIR "/tmp/";
+        std::string tmpLKHDir = PROJECT_SOURCE_DIR "/tmp_lkh/";
         std::string TSPfilename = tmpLKHDir + "viewpoints.tsp";
         std::string Paramfilename = tmpLKHDir + "viewpoints.par";
         std::string Outputfilename = tmpLKHDir + "viewpoints.output";
 
     private:
         void writeTSPandParamtoFile(std::vector<glm::vec3> &points);
+        void runLKH();
+        std::vector<GLint> readLKHOutput();
+        void cleanUp();
+
+        float tourLength = -1;
+
+        bool debug = false;
+};
 
 
 };
-
 
 #endif

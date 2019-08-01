@@ -6,6 +6,7 @@ in vec2 TexCoords;
 
 uniform sampler2D texDepthWithCull;
 uniform sampler2D texDepthNoCull;
+// uniform sampler2D texColourNoCull;
 uniform mat4 invViewMatrix;
 uniform float scaleFactor;
 uniform vec2 cameraNearFarPlane;
@@ -22,7 +23,7 @@ void main()
   float linear_depth = 2.0 * depthrange.x * depthrange.y / (depthrange.x + depthrange.y - depth * (depthrange.y - depthrange.x));
   float linear_depth_no_cull = 2.0 * depthrange.x * depthrange.y / (depthrange.x + depthrange.y - depthNoCull * (depthrange.y - depthrange.x));
 
-  if ( abs(linear_depth - linear_depth_no_cull) > 0.001 ) {
+  if ( abs(linear_depth - linear_depth_no_cull) > 0.01 ) {
     linear_depth = depthrange.y; // max depth
   }
 
@@ -41,6 +42,11 @@ void main()
   vec4 view_space_position = vec4(vector_eye_to_depth, 1);
 
   vec4 worldSpc = invViewMatrix * view_space_position;
+
+  // If Colour texture passed in has negative alpha, then we are on the backface
+  // if(texture(texColourNoCull, TexCoords).x > 0.5) {
+  //   linear_depth = 0;
+  // }
   
   worldSpace = ivec4(worldSpc.xyz * int(scaleFactor), linear_depth * int(scaleFactor));
 }

@@ -22,7 +22,6 @@ CoveragePlanner::CoveragePlanner(AVSCPP::Renderer &renderer, AVSCPP::CameraContr
         if(sb[4] < boundingBox[4]){boundingBox[4] = sb[4];} //zmin
         if(sb[5] > boundingBox[5]){boundingBox[5] = sb[5];} //zmax
     }
-    
     // Scale boundingbox
     std::transform(boundingBox.begin(), boundingBox.end(), boundingBox.begin(),
                    std::bind(std::multiplies<float>(), std::placeholders::_1, boundingBoxScaler));
@@ -42,9 +41,19 @@ std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resX, GLfloat 
 std::vector<glm::vec3> CoveragePlanner::generatePositions(std::vector<GLfloat> boundingBox, GLfloat resX, GLfloat resY, GLfloat resZ) {
     std::vector<glm::vec3> viewpoint_samples;
 
-    for(float x = boundingBox[0]; x <= boundingBox[1]; x+=resX) {
-        for(float y = boundingBox[2]; y <= boundingBox[3]; y+=resY) {
-            for(float z = boundingBox[4]; z <= boundingBox[5]; z+=resZ) {
+    float lowboundX = 0; 
+    float lowboundY = 0; 
+    float lowboundZ = 0; 
+
+    while(lowboundX > boundingBox[0] || lowboundY > boundingBox[2] || lowboundZ > boundingBox[4] ) {
+        if(lowboundX > boundingBox[0]){lowboundX -= resX;}
+        if(lowboundY > boundingBox[2]){lowboundY -= resY;}
+        if(lowboundZ > boundingBox[4]){lowboundZ -= resZ;}
+    }
+
+    for(float x = lowboundX + resX; x <= boundingBox[1]; x+=resX) {
+        for(float y = lowboundY + resY; y <= boundingBox[3]; y+=resY) {
+            for(float z = lowboundZ + resZ; z <= boundingBox[5]; z+=resZ) {
                 viewpoint_samples.push_back(glm::vec3(x, y, z));
             }
         }
@@ -98,20 +107,20 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
             
             // Store minimum depth
             float minDepth = 10000000.0f;
+            float numBackface = 0;
             for(int i = 0; i < renderer->getNumPixels(); i++) {
                 float depth = pixelLocs[i*4+3]; // Depth Data
-                if(depth < minDepth){minDepth = depth;}
+                if(depth>0 && depth < minDepth){minDepth = depth;}
+                if(depth<=0){numBackface++;printf("a");}
             }
 
-            // printf("depth: %f, mindepth: %f, pose %s, %f\n", minDepth, minYawDepth, glm::to_string(pos).c_str(), yaw);
-            
-            if (minDepth < minYawDepth && minDepth > depthMin) {
+            float percentageBackFace = numBackface / renderer->getNumPixels();
+            printf("Percentage Backface = %f\n", percentageBackFace);
+
+            if (minDepth < minYawDepth && minDepth > depthMin && percentageBackFace < 0.5) {
                 minYawDepth = minDepth;
                 bestyawpose = dronePose;
             }
-
-            // planner.addViewpoint(dronePose);
-            // std::this_thread::sleep_for(std::chrono::milliseconds(waitMillis));
         }
         
         // If all greater than some threshold, remove camera location, continue
@@ -124,7 +133,7 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
             pixelLocs = renderer->getRenderedPositions(*camera, meshes);
             for(int i = 0; i < renderer->getNumPixels(); i++) {
                 float depth = pixelLocs[i*4 +3];
-                if(depth >= depthMin && depth <= depthMax) {
+                if(depth >= depthMin && depth <= depthMax * 2) {
                     seenLocations.push_back(glm::vec3(pixelLocs[i*4], pixelLocs[i*4+1], pixelLocs[i*4+2]));
                 }
             }
@@ -135,9 +144,33 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
         }
 
     }
+    printf("Number of viewpoints: %lu\n-----\n", viewpoints.size());
 }
 
-void CoveragePlanner::calculateTrajectories(std::vector<glm::vec3> initialPositions) {
+void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPositions) {
     
+    printf("Performing Lin-Kernighan heuristic for solving TSP around Viewpoints\n");
+    std::vector<glm::vec3> viewpointPositions;
+    for(glm::mat4 vp : viewpoints) {
+        viewpointPositions.push_back(glm::vec3(vp[3]));
+    }
+
+    // Perform LKH on viewpoints
+    AVSCPP::LKHSolver lkh;
+    trajectory = lkh.solve(viewpointPositions);
+
+    if(debug) {
+        for(GLint k: trajectory){
+            printf("%i ", k);
+        }
+        printf("\n");
+    }
+    
+    
+
+    // Find node closest to initial position
+    // TODO
+
+    printf("-----\n");
 }
 

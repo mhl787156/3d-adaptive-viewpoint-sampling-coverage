@@ -42,6 +42,7 @@
 #include "mesh.hpp"
 #include "controls.hpp"
 #include "avscpp.hpp"
+#include "utils.hpp"
 
 // Define Some Constants
 const int mWidth = 800; //1280;
