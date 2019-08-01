@@ -90,16 +90,15 @@ void Renderer::setShaders(AVSCPP::Shader *_normalShader,
     float half_y_near_plane = glm::tan(camera.getfov() / 2.0);
     glm::vec2 hsnp = glm::vec2(half_y_near_plane , half_y_near_plane / camera.getAspect()); //  / camera.getAspect();
     backprojectionShader->bind("halfSizeNearPlane", hsnp);
-    // backprojectionShader->bind("texDepthWithCull", 0);
-    // backprojectionShader->bind("texDepthNoCull", 1);
-    // backprojectionShader->bind("texColourNoCull", 2);
     backprojectionShader->bind("scaleFactor", positionShaderScaler);
     backprojectionShader->bind("cameraNearFarPlane", camera.getDisplayRange());
 
     GLuint t1Location = glGetUniformLocation(backprojectionShader->get(), "texDepthWithCull");
     GLuint t2Location = glGetUniformLocation(backprojectionShader->get(), "texDepthNoCull");
+    GLuint t3Location = glGetUniformLocation(backprojectionShader->get(), "texColourNoCull");
     glUniform1i(t1Location, 0);
     glUniform1i(t2Location, 1);
+    glUniform1i(t3Location, 2);
 }
 
 
@@ -122,13 +121,13 @@ void Renderer::initFrameBuffers() {
     // Create frame buffer for no cull
     glGenFramebuffers(1, &framebuffer1b);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer1b);  
-    // glGenTextures(1, &texColourBufferNoCull);
-    // glBindTexture(GL_TEXTURE_2D, texColourBufferNoCull);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glBindTexture(GL_TEXTURE_2D, 0); 
-    // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColourBufferNoCull, 0);
+    glGenTextures(1, &texColourBufferNoCull);
+    glBindTexture(GL_TEXTURE_2D, texColourBufferNoCull);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, mWidth, mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0); 
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColourBufferNoCull, 0);
     glGenTextures(1, &texDepthBufferNoCull);
     glBindTexture(GL_TEXTURE_2D, texDepthBufferNoCull);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, mWidth, mHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -213,18 +212,17 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     glDisable(GL_CULL_FACE); // Second pass without cull
 
     // Activate Shader
-    // backDetectShader->activate(); // Write into alpha channel as negative on backface
-    normalShader->activate();
+    backDetectShader->activate(); // Write into alpha channel as negative on backface
 
     // Draw Mesh 2nd time
     for(AVSCPP::Mesh* m: meshes){
         glm::mat4 MVP = camera.getVPMatrix() * m->getModelMatrix();
-        // backDetectShader->bind("MVP", MVP);
-        // m->draw(backDetectShader->get());
-        normalShader->bind("MVP", MVP);
-        normalShader->bind("in_colour", glm::vec4(0.0, 0.0, 0.0, 1.0));
-        // normalShader->bind("cullface", false);
-        m->draw(normalShader->get());
+        backDetectShader->bind("MVP", MVP);
+        m->draw(backDetectShader->get());
+        // normalShader->bind("MVP", MVP);
+        // normalShader->bind("in_colour", glm::vec4(0.0, 0.0, 0.0, 1.0));
+        // // normalShader->bind("cullface", false);
+        // m->draw(normalShader->get());
     }
 
     // 3rd pass backprojection
@@ -242,8 +240,8 @@ GLfloat* Renderer::getRenderedPositions(AVSCPP::CameraControl &camera, std::vect
     glBindTexture(GL_TEXTURE_2D, texDepthBuffer); // use the depth attachment texture as the texture of the quad plane
     glActiveTexture(GL_TEXTURE0+1 ); // Texture unit 1
     glBindTexture(GL_TEXTURE_2D, texDepthBufferNoCull);
-    // glActiveTexture(GL_TEXTURE0 + 2); // Texture unit 2
-    // glBindTexture(GL_TEXTURE_2D, texColourBufferNoCull);
+    glActiveTexture(GL_TEXTURE0 + 2); // Texture unit 2
+    glBindTexture(GL_TEXTURE_2D, texColourBufferNoCull);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glBindTexture(GL_TEXTURE_2D, projtexColorBuffer);

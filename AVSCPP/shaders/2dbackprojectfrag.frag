@@ -6,7 +6,7 @@ in vec2 TexCoords;
 
 uniform sampler2D texDepthWithCull;
 uniform sampler2D texDepthNoCull;
-// uniform sampler2D texColourNoCull;
+uniform sampler2D texColourNoCull;
 uniform mat4 invViewMatrix;
 uniform float scaleFactor;
 uniform vec2 cameraNearFarPlane;
@@ -44,9 +44,9 @@ void main()
   vec4 worldSpc = invViewMatrix * view_space_position;
 
   // If Colour texture passed in has negative alpha, then we are on the backface
-  // if(texture(texColourNoCull, TexCoords).x > 0.5) {
-  //   linear_depth = 0;
-  // }
+  if(texture(texColourNoCull, TexCoords).x > 0.5) {
+    linear_depth = 0;
+  }
   
   worldSpace = ivec4(worldSpc.xyz * int(scaleFactor), linear_depth * int(scaleFactor));
 }
