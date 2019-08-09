@@ -58,8 +58,10 @@ int main(int argc, char * argv[]) {
 
     // Planner renders a set of viewpoints using a default resolution
     // passing an empty vector will cause the full Mesh bounding box to be used.
-    planner.sampleViewpoints(std::vector<float>(), 7.0f, 3.0f, 7.0f, M_PI/8);
+    planner.sampleViewpoints(std::vector<float>(), 7.0f, 3.0f, 15.0f, M_PI/8);
     // planner.sampleViewpoints(std::vector<float>(), 100.0f, 100.0f, 100.0f, M_PI/4);
+
+    planner.compareSeenpointsWithReference();
 
     std::vector<glm::vec3> initialPos;
     initialPos.push_back(glm::vec3(10.0, 10.0, 10.0));
@@ -83,7 +85,7 @@ int main(int argc, char * argv[]) {
 std::vector<AVSCPP::Mesh*> loadMeshes() {
     std::vector<AVSCPP::Mesh*> meshes;
 
-    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane3.obj";
+    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane3";
     AVSCPP::Mesh* modelPoints = new AVSCPP::Mesh(modelPath);
     // glm::mat4 modelMat = glm::yawPitchRoll(0.0f, (float)M_PI/2, 0.0f);
     glm::mat4 modelMat = glm::mat4(1.0);

@@ -12,6 +12,11 @@
 #include <memory>
 #include <vector>
 
+// Point Cloud Library
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+
 // Define Namespace
 namespace AVSCPP
 {
@@ -50,6 +55,8 @@ namespace AVSCPP
         }
 
         std::vector<GLfloat> getBoundingBox(std::vector<GLfloat> bounds);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr getPointCloud() {return pointCloud;}
+
     private:
 
         // Disable Copying and Assignment
@@ -76,5 +83,7 @@ namespace AVSCPP
 
         glm::mat4 ModelMatrix;
 
+        // PCL variant of data
+        pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud;
     };
 }

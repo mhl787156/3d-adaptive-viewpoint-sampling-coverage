@@ -19,7 +19,12 @@
 #include <fstream>
 #include <limits>
 #include <vector>
+#include <memory>
 
+// PointCloudLibrary
+#include <pcl/point_cloud.h>
+#include <pcl/octree/octree_pointcloud_changedetector.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 // Local Library Headers
 #include "render.hpp"
@@ -50,6 +55,8 @@ class CoveragePlanner {
         std::vector<glm::mat4>& getViewpoints(){return viewpoints;}
         std::vector<glm::vec3>& getSeenpoints(){return seenLocations;}
 
+        void compareSeenpointsWithReference();
+
         // Path Planning
         void calculateLKHTrajectories(std::vector<glm::vec3> initialPositions);
 
@@ -78,6 +85,11 @@ class CoveragePlanner {
 
         std::vector<glm::mat4> viewpoints; // Viewpoint sampling outputs
         std::vector<glm::vec3> seenLocations; // Points outputted by the rendering x, y, z, depthFromViewpoint
+
+        float octreeResolution = 0.5;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr objectPointCloud;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr seenPointCloud;
+        std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>> octree;
 
         std::vector<GLint> trajectory; // Indexes into viewpoints
 

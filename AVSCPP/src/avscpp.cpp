@@ -28,6 +28,27 @@ CoveragePlanner::CoveragePlanner(AVSCPP::Renderer &renderer, AVSCPP::CameraContr
 
     printf("Mesh Boundary: ");
     for(float b :boundingBox) {printf("%f ", b);} printf("\n");
+
+    // Initialise PointCloud
+    objectPointCloud = modelMesh[0]->getPointCloud();
+    seenPointCloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
+    // seenPointCloud->width = objectPointCloud->width * 2;
+    // seenPointCloud->height = 1;
+    // seenPointCloud->points.resize(seenPointCloud->width * seenPointCloud->height);
+
+
+    // pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
+    // viewer.showCloud(objectPointCloud);
+    // while(!viewer.wasStopped()) {}
+    // viewer.~CloudViewer();
+
+
+    octree = std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>>(
+                new pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>(octreeResolution));
+    // octree->setInputCloud(objectPointCloud);
+    // octree->addPointsFromInputCloud();
+    // octree->switchBuffers();
+    // octree->setInputCloud(seenPointCloud);
 }
 
 std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resolution) {
@@ -133,8 +154,13 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
             for(int i = 0; i < renderer->getNumPixels(); i++) {
                 float depth = pixelLocs[i*4 +3];
                 if(depth >= depthMin && depth <= depthMax * 2) {
-                    seenLocations.push_back(glm::vec3(pixelLocs[i*4], pixelLocs[i*4+1], pixelLocs[i*4+2]));
-                }
+                    float x = pixelLocs[i*4];
+                    float y = pixelLocs[i*4+1];
+                    float z = pixelLocs[i*4+2];
+                    seenLocations.push_back(glm::vec3(x, y, z));
+                    seenPointCloud->push_back(pcl::PointXYZ(x, y, z));
+                    // octree->addPointToCloud(pcl::PointXYZ(x, y, z), seenPointCloud);
+                }   
             }
         }
 
@@ -144,6 +170,48 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
 
     }
     printf("Number of viewpoints: %lu\n-----\n", viewpoints.size());
+}
+
+void CoveragePlanner::compareSeenpointsWithReference() {
+    // Compare the points we have seen with reference model
+    octree->setInputCloud(seenPointCloud);
+    octree->addPointsFromInputCloud();
+
+    octree->switchBuffers();
+
+    octree->setInputCloud(objectPointCloud);
+    octree->addPointsFromInputCloud();
+
+    // Output indices of reference pcl
+    std::vector<int> missingPoints;
+
+    // Get vector of points from current octree voxels which did not exist in previous buffer
+    int numPoints = octree->getPointIndicesFromNewVoxels(missingPoints);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr tmppcl(new pcl::PointCloud<pcl::PointXYZ>);
+    tmppcl->width = missingPoints.size();
+    tmppcl->height = 1;
+    tmppcl->points.resize(tmppcl->width);
+
+    // Print out output
+    for(int i = 0; i < missingPoints.size(); i++) {
+        auto point = objectPointCloud->points[missingPoints[i]];
+        tmppcl->points[i].x = point.x;
+        tmppcl->points[i].y = point.y;
+        tmppcl->points[i].z = point.z;
+    }
+
+    printf("%i points were identified as missing\n", numPoints);
+    
+
+    pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
+    viewer.showCloud(tmppcl);
+    while(!viewer.wasStopped()) {}
+    viewer.~CloudViewer();
+
+
+    // Switch back to seenPoints PointCloud on top
+    // octree->switchBuffers();
 }
 
 void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPositions) {

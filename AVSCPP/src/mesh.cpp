@@ -12,10 +12,11 @@ namespace AVSCPP
 {
     Mesh::Mesh(std::string const & filename) : Mesh()
     {
+        std::string meshFilename = filename + ".obj";
         // Load a Model from File
         Assimp::Importer loader;
         aiScene const * scene = loader.ReadFile(
-            filename,
+            meshFilename,
             aiProcessPreset_TargetRealtime_MaxQuality |
             aiProcess_OptimizeGraph                   |
             aiProcess_FlipUVs);
@@ -24,6 +25,17 @@ namespace AVSCPP
         auto index = filename.find_last_of("/");
         if (!scene) fprintf(stderr, "%s\n", loader.GetErrorString());
         else parse(filename.substr(0, index), scene->mRootNode, scene);
+
+        // Load Corresponding PCD file as pointcloud
+        std::string pointCloudFilename = filename + ".pcd";
+        pointCloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>());
+
+        if(pcl::io::loadPCDFile<pcl::PointXYZ>(pointCloudFilename, *pointCloud) == -1)
+        {
+            printf("No PCD point cloud file found at %s\n", pointCloudFilename.c_str());
+        } else {
+            printf("PCD file loaded\n");
+        }
     }
 
     Mesh::Mesh(std::vector<Vertex> const & vertices,
