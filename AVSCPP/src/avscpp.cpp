@@ -32,23 +32,9 @@ CoveragePlanner::CoveragePlanner(AVSCPP::Renderer &renderer, AVSCPP::CameraContr
     // Initialise PointCloud
     objectPointCloud = modelMesh[0]->getPointCloud();
     seenPointCloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
-    // seenPointCloud->width = objectPointCloud->width * 2;
-    // seenPointCloud->height = 1;
-    // seenPointCloud->points.resize(seenPointCloud->width * seenPointCloud->height);
-
-
-    // pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
-    // viewer.showCloud(objectPointCloud);
-    // while(!viewer.wasStopped()) {}
-    // viewer.~CloudViewer();
-
 
     octree = std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>>(
                 new pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>(octreeResolution));
-    // octree->setInputCloud(objectPointCloud);
-    // octree->addPointsFromInputCloud();
-    // octree->switchBuffers();
-    // octree->setInputCloud(seenPointCloud);
 }
 
 std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resolution) {
@@ -62,9 +48,9 @@ std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resX, GLfloat 
 std::vector<glm::vec3> CoveragePlanner::generatePositions(std::vector<GLfloat> boundingBox, GLfloat resX, GLfloat resY, GLfloat resZ) {
     std::vector<glm::vec3> viewpoint_samples;
 
-    float lowboundX = 0; 
-    float lowboundY = 0; 
-    float lowboundZ = 0; 
+    float lowboundX = (boundingBox[0] + boundingBox[1]) / 2.0; 
+    float lowboundY = (boundingBox[2] + boundingBox[3]) / 2.0; 
+    float lowboundZ = (boundingBox[4] + boundingBox[5]) / 2.0; 
 
     while(lowboundX > boundingBox[0] || lowboundY > boundingBox[2] || lowboundZ > boundingBox[4] ) {
         if(lowboundX > boundingBox[0]){lowboundX -= resX;}
@@ -83,6 +69,27 @@ std::vector<glm::vec3> CoveragePlanner::generatePositions(std::vector<GLfloat> b
     return viewpoint_samples;
 }
 
+std::vector<glm::vec3> CoveragePlanner::generatePositions(std::vector<GLfloat> boundingBox, GLint numX, GLint numY, GLint numZ) {
+    std::vector<glm::vec3> viewpoint_samples;
+
+    float resX = (boundingBox[1] - boundingBox[0]) / (float) numX;
+    float resY = (boundingBox[3] - boundingBox[2]) / (float) numY;
+    float resZ = (boundingBox[5] - boundingBox[4]) / (float) numZ;
+    resX = glm::max(resX, minResolution[0]);
+    resY = glm::max(resY, minResolution[1]);
+    resZ = glm::max(resZ, minResolution[2]);
+
+    for(float x = boundingBox[0]; x <= boundingBox[1]; x+=resX) {
+        for(float y = boundingBox[2]; y <= boundingBox[3]; y+=resY) {
+            for(float z = boundingBox[4]; z <= boundingBox[5]; z+=resZ) {
+                viewpoint_samples.push_back(glm::vec3(x, y, z));
+            }
+        }
+    }
+
+    return viewpoint_samples;
+}
+
 std::vector<float> CoveragePlanner::generateOrientations(GLfloat resolution) {
     std::vector<float> orientation_samples;
     for(float yaw = 0.0; yaw <= 2*M_PI; yaw+=resolution) {
@@ -91,10 +98,36 @@ std::vector<float> CoveragePlanner::generateOrientations(GLfloat resolution) {
     return orientation_samples;
 }
 
-void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
+void CoveragePlanner::sampleViewpointsNumPoints(std::vector<GLfloat> boundingBox,
+                                                GLint numX, GLint numY, 
+                                                GLint numZ, GLfloat resRadians) {
+    std::vector<int> nums{numX, numY, numZ};
+    std::vector<float> res{0.0, 0.0, 0.0};
+    
+    // Reduce number of views until resolution is greater than min resolution
+    for(int i = 0; i < res.size(); i++) {
+        for(int x = nums[i]; x > 0; x--) {
+            res[i] = glm::abs(boundingBox[i+1] - boundingBox[i]) / (float) x;
+            if(res[i] > minResolution[i]) {break;}
+        }
+        if(res[i] < minResolution[i]) {
+            // If all too small, set bounding box size of axis to midpoint
+            float midpoint = (boundingBox[i] + boundingBox[i+1])/ 2.0;
+            boundingBox[i] = midpoint;
+            boundingBox[i+1] = midpoint;
+            res[i] = minResolution[i];
+        }
+    }
+    printf("Calculated resolution: %f, %f, %f\n", res[0], res[1], res[2]);
+    sampleViewpointsResolution(boundingBox, res[0], res[1], res[2], resRadians);
+}
+
+void CoveragePlanner::sampleViewpointsResolution(std::vector<GLfloat> boundingBox,
                                                 GLfloat resX, GLfloat resY, 
                                                 GLfloat resZ, GLfloat resRadians) {
-    viewpoints.clear(); // Clear existing viewpoints
+    // viewpoints.clear(); // Clear existing viewpoints
+
+    long unsigned int prevNumberViewpoints = viewpoints.size();
 
     if(boundingBox.size() != 6) {
         boundingBox = this->boundingBox;
@@ -157,7 +190,7 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
                     float x = pixelLocs[i*4];
                     float y = pixelLocs[i*4+1];
                     float z = pixelLocs[i*4+2];
-                    seenLocations.push_back(glm::vec3(x, y, z));
+                    // seenLocations.push_back(glm::vec3(x, y, z));
                     seenPointCloud->push_back(pcl::PointXYZ(x, y, z));
                     // octree->addPointToCloud(pcl::PointXYZ(x, y, z), seenPointCloud);
                 }   
@@ -169,16 +202,20 @@ void CoveragePlanner::sampleViewpoints(std::vector<GLfloat> boundingBox,
         }
 
     }
-    printf("Number of viewpoints: %lu\n-----\n", viewpoints.size());
+
+    long unsigned int size =  viewpoints.size();
+    printf("Number of viewpoints: %lu (%lu new points)\n-----\n", size, size - prevNumberViewpoints);
 }
 
-void CoveragePlanner::compareSeenpointsWithReference() {
-    // Filter Down seenPointCloud
+std::vector<std::vector<float>> CoveragePlanner::compareAndClusterSeenpointsWithReference(float res) {
+    // Filter Down seenPointCloud into res grid for comparison
     pcl::VoxelGrid<pcl::PointXYZ> vg;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
     vg.setInputCloud (seenPointCloud);
-    vg.setLeafSize (0.2f, 0.2f, 0.2f); // Filtered to 10cm voxels
+    vg.setLeafSize (res, res, res); // Filtered to res voxels
     vg.filter (*cloud_filtered);
+
+    seenPointCloud = cloud_filtered;
 
     // Compare the points we have seen with reference model
     octree->setInputCloud(cloud_filtered);
@@ -186,7 +223,7 @@ void CoveragePlanner::compareSeenpointsWithReference() {
 
     octree->switchBuffers();
 
-    octree->setInputCloud(objectPointCloud);
+    octree->setInputCloud(objectPointCloud); // Object Point Cloud already pre-filtered
     octree->addPointsFromInputCloud();
 
     // Output indices of reference pcl
@@ -209,6 +246,10 @@ void CoveragePlanner::compareSeenpointsWithReference() {
     }
 
     printf("%i points were identified as missing out of %lu reference\n", numPoints, objectPointCloud->size());
+
+    if(numPoints < 10) {
+        return std::vector<std::vector<float>>();
+    }
 
     // pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
     // viewer.showCloud(tmppcl);
@@ -253,7 +294,7 @@ void CoveragePlanner::compareSeenpointsWithReference() {
 
         // Get the points associated with the planar surface
         extract.filter (*cloud_plane);
-        std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
+        // std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
 
         // Remove the planar inliers, extract the rest
         extract.setNegative (true);
@@ -273,26 +314,53 @@ void CoveragePlanner::compareSeenpointsWithReference() {
     ec.setInputCloud (cloud_filtered);
     ec.extract (cluster_indices);
 
-    int j = 0;
+    std::vector<std::vector<float>> returnBBXs;
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
     {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+        octomap::OcTree tree(octreeResolution);
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
         for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit) {
-            cloud_cluster->points.push_back (cloud_filtered->points[*pit]); //*
+        //     cloud_cluster->points.push_back (cloud_filtered->points[*pit]); //*
+            pcl::PointXYZ point = cloud_filtered->points[*pit];
+            octomap::point3d opoint(point.x, point.y, point.z);
+            tree.updateNode(opoint, true);
         }
-        cloud_cluster->width = cloud_cluster->points.size ();
-        cloud_cluster->height = 1;
-        cloud_cluster->is_dense = true;
 
-        std::stringstream ss;
-        ss << "cloud_cluster_" << j << ".pcd";
-        writer.write<pcl::PointXYZ> (ss.str (), *cloud_cluster, false); //*
-        std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
-        j++;
+        double xmin, ymin, zmin, xmax, ymax, zmax;
+        tree.getMetricMax(xmax, ymax, zmax);
+        tree.getMetricMin(xmin, ymin, zmin);
+
+        std::vector<double> bboxd{xmin, xmax, ymin, ymax, zmin, zmax};
+        std::vector<float> bbox(bboxd.begin(), bboxd.end());
+
+        // Scale boundingbox
+        std::transform(bbox.begin(), bbox.end(), bbox.begin(),
+                   std::bind(std::multiplies<float>(), std::placeholders::_1, boundingBoxScaler));
+
+
+        returnBBXs.push_back(bbox);
     }
 
     printf("-----\n");
+    return returnBBXs;
 }
+
+std::vector<glm::vec3>& CoveragePlanner::getSeenpoints(float res){
+     // Filter Down seenPointCloud
+    pcl::VoxelGrid<pcl::PointXYZ> vg;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+    vg.setInputCloud (seenPointCloud);
+    vg.setLeafSize (res, res, res); // Filtered to 10cm voxels
+    vg.filter (*cloud_filtered);
+
+    seenLocations.clear();
+    for(pcl::PointXYZ p : cloud_filtered->points) {
+        seenLocations.push_back(glm::vec3(p.x, p.y, p.z));
+    }
+
+    return seenLocations;
+}
+
 
 void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPositions) {
     
@@ -313,8 +381,6 @@ void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPos
         printf("\n");
     }
     
-    
-
     // Find node closest to initial position
     // TODO
 

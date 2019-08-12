@@ -13,6 +13,7 @@ bool renderToScreen = false;
 bool setDebug = false;
 bool renderTesting = false; 
 int waitMillis = 0;
+int iterations = 1;
 
 // Function declarations
 std::vector<AVSCPP::Mesh*> loadMeshes();
@@ -25,6 +26,7 @@ int main(int argc, char * argv[]) {
         if(std::string(argv[i]) == "-s") {renderToScreen = true; continue;}
         if(std::string(argv[i]) == "-rt") {renderTesting = true; continue;}
         if(std::string(argv[i]) == "-w") {waitMillis = std::stoi(std::string(argv[++i])); continue;}
+        if(std::string(argv[i]) == "-it") {iterations = std::stoi(std::string(argv[++i])); continue;}
     }
    
     // Init OpenGL
@@ -55,13 +57,35 @@ int main(int argc, char * argv[]) {
 
     AVSCPP::CoveragePlanner planner(renderer, camera, meshes);
     planner.setDebug(setDebug);
+    planner.setMinResolution(1.0, 1.0, 1.0);
 
-    // Planner renders a set of viewpoints using a default resolution
-    // passing an empty vector will cause the full Mesh bounding box to be used.
-    planner.sampleViewpoints(std::vector<float>(), 7.0f, 3.0f, 15.0f, M_PI/8);
-    // planner.sampleViewpoints(std::vector<float>(), 100.0f, 100.0f, 100.0f, M_PI/4);
+    std::vector<std::vector<float>> boundingBoxes;
+    boundingBoxes.push_back(planner.getBoundingBox());
 
-    planner.compareSeenpointsWithReference();
+    for(int it = 0; it < iterations; it++) {
+        printf("######## Iteration %i #######\n", it+1);
+        for(std::vector<float> bbox: boundingBoxes) {
+            // Planner renders a set of viewpoints using a default resolution
+            // passing an empty vector will cause the full Mesh bounding box to be used.
+            planner.sampleViewpointsNumPoints(bbox, 4, 4, 4, M_PI/8);
+        }
+        boundingBoxes.clear();
+
+        boundingBoxes = planner.compareAndClusterSeenpointsWithReference(0.1f);
+        for(auto v: boundingBoxes) {
+            printf("New bounding box: ");
+            for(float f: v) {
+                printf("%f ", f);
+            }
+            printf("\n");
+        }
+
+        if(boundingBoxes.size() == 0) {
+            printf("No further clusterings found\n");
+            break;
+        }
+    }
+
 
     std::vector<glm::vec3> initialPos;
     initialPos.push_back(glm::vec3(10.0, 10.0, 10.0));
@@ -70,7 +94,7 @@ int main(int argc, char * argv[]) {
 
     // Calculate best Path through using heuristic and maybe some more rendering
     std::vector<glm::mat4> viewpoints = planner.getViewpoints();
-    std::vector<glm::vec3> seenpoints = planner.getSeenpoints();
+    std::vector<glm::vec3> seenpoints = planner.getSeenpoints(0.1f);
     std::vector<GLint> trajectory = planner.getTrajectories();
 
     

@@ -31,6 +31,8 @@ find_package( PCL 1.2 REQUIRED )
 
 find_package( Boost REQUIRED COMPONENTS system)
 
+find_package( octomap REQUIRED )
+
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
 else()
@@ -55,6 +57,7 @@ include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ${PCL_INCLUDE_DIRS} )
 link_directories( ${PCL_LIBRARY_DIRS} )
 add_definitions( ${PCL_DEFINITIONS} )
+include_directories( ${OCTOMAP_INCLUDE_DIRS} )
 
 file(GLOB EXTERNAL_SOURCES external/glad/src/glad.c)
 file(GLOB PROJECT_HEADERS AVSCPP/include/*.hpp)
@@ -81,7 +84,7 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS}
                                ${EXTERNAL_SOURCES})
 target_link_libraries(${PROJECT_NAME} assimp glfw
                       ${GLFW_LIBRARIES} ${GLAD_LIBRARIES} ${OpenCV_LIBS}
-                      ${Boost_LIBRARIES} ${PCL_LIBRARIES}
+                      ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OCTOMAP_LIBRARIES}
                       BulletDynamics BulletCollision LinearMath)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})

@@ -38,6 +38,12 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
+
+// Octomap
+#include <octomap/octomap.h>
+#include <octomap/OcTree.h>
+
+
 // Local Library Headers
 #include "render.hpp"
 #include "shader.hpp"
@@ -54,21 +60,25 @@ class CoveragePlanner {
         CoveragePlanner(AVSCPP::Renderer& renderer, AVSCPP::CameraControl& camera, std::vector<AVSCPP::Mesh*> modelMesh);
 
         // Viewpoint Generation
-        void sampleViewpoints(std::vector<GLfloat> boundingBox,
+        void sampleViewpointsNumPoints(std::vector<GLfloat> boundingBox,
+                              GLint numX, GLint numY, 
+                              GLint numZ, GLfloat resRadians);
+        void sampleViewpointsResolution(std::vector<GLfloat> boundingBox,
                               GLfloat resX, GLfloat resY, 
                               GLfloat resZ, GLfloat resRadians);
         
         std::vector<glm::vec3> generatePositions(GLfloat meterResolution);
         std::vector<glm::vec3> generatePositions(GLfloat resX, GLfloat resY, GLfloat resZ);
         std::vector<glm::vec3> generatePositions(std::vector<GLfloat> boundingBox, GLfloat resX, GLfloat resY, GLfloat resZ);
+        std::vector<glm::vec3> generatePositions(std::vector<GLfloat> boundingBox, GLint numX, GLint numY, GLint numZ);
         std::vector<float> generateOrientations(GLfloat radiansResolution);
 
         void addViewpoint(glm::mat4 vp) {viewpoints.push_back(vp);}
         std::vector<glm::mat4>& getViewpoints(){return viewpoints;}
-        std::vector<glm::vec3>& getSeenpoints(){return seenLocations;}
+        std::vector<glm::vec3>& getSeenpoints(float res=0.5f);
 
-        void compareSeenpointsWithReference();
-
+        std::vector<std::vector<float>> compareAndClusterSeenpointsWithReference(float res=0.2f);
+        
         // Path Planning
         void calculateLKHTrajectories(std::vector<glm::vec3> initialPositions);
 
@@ -79,6 +89,8 @@ class CoveragePlanner {
         // General Setters and Getters
         void setDepthRange(GLfloat min, GLfloat max) {depthMin=min;depthMax=max;}
         void setDebug(bool d) {debug = d;}
+        std::vector<GLfloat> getBoundingBox() {return boundingBox;}
+        void setMinResolution(float x, float y, float z) {minResolution = std::vector<GLfloat>{x, y, z};}
     
     private:
 
@@ -94,6 +106,9 @@ class CoveragePlanner {
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // xmin xmax
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // ymin ymax
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min()};// zmin zmax
+
+        std::vector<GLfloat> minResolution{1.0f, 1.0f, 1.0f};
+
 
         std::vector<glm::mat4> viewpoints; // Viewpoint sampling outputs
         std::vector<glm::vec3> seenLocations; // Points outputted by the rendering x, y, z, depthFromViewpoint
