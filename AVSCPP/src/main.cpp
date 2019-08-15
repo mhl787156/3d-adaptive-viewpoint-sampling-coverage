@@ -14,6 +14,8 @@ bool setDebug = false;
 bool renderTesting = false; 
 int waitMillis = 0;
 int iterations = 1;
+bool runLKH = false;
+int numViews = 4;
 
 // Function declarations
 std::vector<AVSCPP::Mesh*> loadMeshes();
@@ -27,6 +29,9 @@ int main(int argc, char * argv[]) {
         if(std::string(argv[i]) == "-rt") {renderTesting = true; continue;}
         if(std::string(argv[i]) == "-w") {waitMillis = std::stoi(std::string(argv[++i])); continue;}
         if(std::string(argv[i]) == "-it") {iterations = std::stoi(std::string(argv[++i])); continue;}
+        if(std::string(argv[i]) == "-lkh") {runLKH = true; continue;}
+        if(std::string(argv[i]) == "-nv") {numViews = std::stoi(std::string(argv[++i])); continue;}
+
     }
    
     // Init OpenGL
@@ -64,12 +69,6 @@ int main(int argc, char * argv[]) {
 
     for(int it = 0; it < iterations; it++) {
         printf("######## Iteration %i #######\n", it+1);
-        for(std::vector<float> bbox: boundingBoxes) {
-            // Planner renders a set of viewpoints using a default resolution
-            // passing an empty vector will cause the full Mesh bounding box to be used.
-            planner.sampleViewpointsNumPoints(bbox, 4, 4, 4, M_PI/8);
-        }
-        boundingBoxes.clear();
 
         boundingBoxes = planner.compareAndClusterSeenpointsWithReference(0.1f);
         for(auto v: boundingBoxes) {
@@ -84,12 +83,24 @@ int main(int argc, char * argv[]) {
             printf("No further clusterings found\n");
             break;
         }
+
+        for(std::vector<float> bbox: boundingBoxes) {
+            // Planner renders a set of viewpoints using a default resolution
+            // passing an empty vector will cause the full Mesh bounding box to be used.
+            planner.sampleViewpointsNumPoints(bbox, numViews, numViews, numViews, M_PI/8);
+        }
+
+        boundingBoxes.clear();
     }
 
 
     std::vector<glm::vec3> initialPos;
     initialPos.push_back(glm::vec3(10.0, 10.0, 10.0));
-    planner.calculateLKHTrajectories(initialPos);
+    if(runLKH) {
+        planner.calculateLKHTrajectories(initialPos);
+    }
+
+    planner.calculateAVSCPPTrajectories(initialPos);
 
 
     // Calculate best Path through using heuristic and maybe some more rendering

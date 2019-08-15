@@ -33,7 +33,7 @@ CoveragePlanner::CoveragePlanner(AVSCPP::Renderer &renderer, AVSCPP::CameraContr
     objectPointCloud = modelMesh[0]->getPointCloud();
     seenPointCloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
 
-    octree = std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>>(
+    octreeChangeDetector = std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>>(
                 new pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>(octreeResolution));
 }
 
@@ -141,10 +141,6 @@ void CoveragePlanner::sampleViewpointsResolution(std::vector<GLfloat> boundingBo
         
         GLfloat* pixelLocs;
 
-        // For each camera location
-        float minYawDepth = 100000.0;
-        glm::mat4 bestyawpose = glm::mat4(1.0);
-
         for(float yaw: orientation_samples) {
             // For each discretised camera angle
             glm::mat4 dronePose = glm::yawPitchRoll(yaw, 0.0f, 0.0f);
@@ -162,38 +158,37 @@ void CoveragePlanner::sampleViewpointsResolution(std::vector<GLfloat> boundingBo
             // Store minimum depth
             float minDepth = 10000000.0f;
             float numBackface = 0;
+            float numEmpty = 0;
             for(int i = 0; i < renderer->getNumPixels(); i++) {
                 float depth = pixelLocs[i*4+3]; // Depth Data
                 if(depth > 0 && depth < minDepth){minDepth = depth;}
                 if(depth<=0){numBackface++;}
+                if(depth>depthMax) {numEmpty++;}
             }
 
+            // If viewpoint is within a depth
+            // and isn't entirely backfaces
+            // and isn't completely empty
             float percentageBackFace = numBackface / renderer->getNumPixels();
+            float percentageEmpty = numEmpty / renderer->getNumPixels();
 
-            if (minDepth < minYawDepth && minDepth > depthMin && percentageBackFace < 0.5) {
-                minYawDepth = minDepth;
-                bestyawpose = dronePose;
-            }
-        }
-        
-        // If all greater than some threshold, remove camera location, continue
-        // This does distance and collision filtering
-        if(minYawDepth < depthMax) {
-            addViewpoint(bestyawpose);
-            camera->setViewMatrixFromPoseMatrix(bestyawpose);
-            
-            // Record points
-            pixelLocs = renderer->getRenderedPositions(*camera, meshes);
-            for(int i = 0; i < renderer->getNumPixels(); i++) {
+            if (minDepth < depthMax && minDepth > depthMin 
+                && percentageBackFace < 0.5
+                && percentageEmpty < 0.9 ) {
+                // Then save the viewpoint and insert the points into the pointcloud
+                addViewpoint(dronePose);
+
+                for(int i = 0; i < renderer->getNumPixels(); i++) {
                 float depth = pixelLocs[i*4 +3];
                 if(depth >= depthMin && depth <= depthMax * 2) {
                     float x = pixelLocs[i*4];
                     float y = pixelLocs[i*4+1];
                     float z = pixelLocs[i*4+2];
-                    // seenLocations.push_back(glm::vec3(x, y, z));
+                    // Add viewpoint to Point cloud for comparison and clustering
                     seenPointCloud->push_back(pcl::PointXYZ(x, y, z));
-                    // octree->addPointToCloud(pcl::PointXYZ(x, y, z), seenPointCloud);
                 }   
+            }
+
             }
         }
 
@@ -215,22 +210,23 @@ std::vector<std::vector<float>> CoveragePlanner::compareAndClusterSeenpointsWith
     vg.setLeafSize (res, res, res); // Filtered to res voxels
     vg.filter (*cloud_filtered);
 
-    seenPointCloud = cloud_filtered;
+    // seenPointCloud = cloud_filtered;
 
     // Compare the points we have seen with reference model
-    octree->setInputCloud(cloud_filtered);
-    octree->addPointsFromInputCloud();
+    octreeChangeDetector->setInputCloud(cloud_filtered);
+    octreeChangeDetector->addPointsFromInputCloud();
 
-    octree->switchBuffers();
+    octreeChangeDetector->switchBuffers();
 
-    octree->setInputCloud(objectPointCloud); // Object Point Cloud already pre-filtered
-    octree->addPointsFromInputCloud();
+    octreeChangeDetector->setInputCloud(objectPointCloud); // Object Point Cloud already pre-filtered
+    octreeChangeDetector->addPointsFromInputCloud();
 
     // Output indices of reference pcl
     std::vector<int> missingPoints;
 
     // Get vector of points from current octree voxels which did not exist in previous buffer
-    int numPoints = octree->getPointIndicesFromNewVoxels(missingPoints);
+    int numPoints = octreeChangeDetector->getPointIndicesFromNewVoxels(missingPoints);
+    octreeChangeDetector->switchBuffers();
 
     // Create new pointcloud to hold output
     pcl::PointCloud<pcl::PointXYZ>::Ptr tmppcl(new pcl::PointCloud<pcl::PointXYZ>);
@@ -387,3 +383,96 @@ void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPos
     printf("-----\n");
 }
 
+
+float CoveragePlanner::calculateEntropyOfViewpoint(glm::mat4& viewpoint, float parentEntropy, bool update) {
+    
+    GLfloat* pixelLocs;
+    camera->setViewMatrixFromPoseMatrix(viewpoint);
+    if(renderer->canRender()) {
+        // Render the camera position
+        // Calculate pixel locations
+        pixelLocs = renderer->getRenderedPositions(*camera, meshes);
+    } else {
+        exit(0);
+    }
+
+    float entropies = parentEntropy;
+    for(int i = 0; i < renderer->getNumPixels(); i++) {
+        float x = pixelLocs[i*4];
+        float y = pixelLocs[i*4+1];
+        float z = pixelLocs[i*4+2];
+        float depth = pixelLocs[i*4+3];
+
+        if(depth > depthMax || depth < depthMin) {
+            continue;
+        }
+
+        float accuracy = computeAccuracy(depth);
+        float logoddsa = accuracy/(1-accuracy);
+
+        octomap::OcTreeNode* key;
+        if(key = seenOctree->search(x, y, z)) {
+
+            // point already occupied
+            float logs = key->getLogOdds();
+            float prob = logs/(1+logs);
+            float entropyp = -prob * log(prob);
+
+            float newlogs = logs + logoddsa;
+            float newprobs = newlogs / (1 + newlogs);
+            float entropya = -newprobs * log(newprobs);
+
+            if(update) {
+                key->setLogOdds(logs + logoddsa);
+            }
+
+            entropies += (entropya - entropyp);
+        } else {
+            // point not occupied
+            float newlogs = 1.0f + logoddsa; // probability 0.5
+            float newprobs = newlogs / ( 1 + newlogs );
+            float entropy = -newprobs * log(newprobs);
+
+            if(update) {
+                key->setLogOdds(newlogs);
+            }
+
+            entropies += entropy;
+        }
+
+    }
+
+}
+
+void CoveragePlanner::calculateAVSCPPTrajectories(std::vector<glm::vec3> initialPositions) {
+    printf("Performing AVSCPP to solve TSP around viewpoints\n");
+
+    // initialise octree
+    seenOctree = std::shared_ptr<octomap::OcTree>(new octomap::OcTree(octreeResolution));
+
+    // Generate Neighbourhoods using minimum spanning tree
+    std::vector<std::vector<int>> mst = minimumSpanningTree(viewpoints);
+
+    int j = 0;
+    for(auto vec: mst) {
+        printf("node %i: ", j);
+        for(int v : vec) {
+            printf("%i ", v);
+        }
+        printf("\n");
+        j++;
+    }
+
+
+    std::vector<glm::mat4> openList;
+    std::vector<glm::mat4> closedList;
+
+    openList.push_back(viewpoints[0]);
+
+    while(trajectoryCoverage < targetCoverage) {
+
+        // Pick sbest from openList
+        // Rsbest = 
+        break;
+    }
+}

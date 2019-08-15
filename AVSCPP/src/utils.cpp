@@ -1,6 +1,7 @@
 #include "utils.hpp"
 
 #include <sys/stat.h>
+#include <set>
 
 using namespace AVSCPP;
 
@@ -127,3 +128,67 @@ void LKHSolver::cleanUp() {
     std::string command = "rm -r " + tmpLKHDir;
     std::system(command.c_str());
 }
+
+int minKey(std::vector<int> &keys, std::vector<bool> &mstSet) {
+    int min = INT_MAX;
+    int min_index = 0;
+    for(int v = 0; v < mstSet.size(); v++) {
+        if(!mstSet[v] && keys[v] < min){
+            min = keys[v]; min_index = v;
+        }
+    }
+    return min_index;
+}
+
+std::vector<std::vector<int>> minimumSpanningTree(std::vector<glm::mat4> &vps) {
+
+    std::vector<int> mstrep(vps.size());
+    std::vector<std::set<int>> mst(vps.size());
+
+    std::vector<int> keys(vps.size());
+
+    std::vector<bool> mstSet(vps.size());
+
+    for(int i = 0; i < keys.size(); i++) {
+        keys[i] = INT_MAX; mstSet[i] = false;
+        mst[i] = std::set<int>();
+    }
+
+    keys[0] = 0;
+
+    for(int count = 0; count < vps.size() - 1; count++) {
+        
+        int u = minKey(keys, mstSet);
+
+        mstSet[u] = true;
+
+        for(int v = 0; v < keys.size(); v++) {
+            if(u == v) {continue;}
+            glm::vec3 u_vps = glm::vec3(vps[u][3]);
+            glm::vec3 v_vps = glm::vec3(vps[v][3]);
+            glm::vec3 diff = glm::abs(u_vps - v_vps);
+            float graphUV = sqrt(diff[0] + diff[1] + diff[2]);
+
+
+            if(graphUV == 0) {
+                mst[u].insert(v);
+                mst[v].insert(u);
+                // mstSet[v] = true;
+                continue;
+            }
+
+            if(!mstSet[v] && graphUV < keys[v]) {
+                mstrep[v] = u;
+                keys[v] = graphUV;
+            }
+        }
+    }
+
+    std::vector<std::vector<int>> ret(vps.size());
+    for(int i = 0; i < mstrep.size(); i++) {
+        ret[i] = std::vector<int>(mst[i].begin(), mst[i].end());
+        ret[i].push_back(mstrep[i]);
+    }
+
+    return ret;
+} 

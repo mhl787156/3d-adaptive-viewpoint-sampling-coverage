@@ -81,9 +81,13 @@ class CoveragePlanner {
         
         // Path Planning
         void calculateLKHTrajectories(std::vector<glm::vec3> initialPositions);
+        void calculateAVSCPPTrajectories(std::vector<glm::vec3> initialPositions);
 
         void addTrajectoryPoint(int i) {trajectory.push_back(i);}
         std::vector<GLint> getTrajectories(){return trajectory;}
+
+        // Probability Calc
+        float computeAccuracy(float deptherror) {return normalizedFocalLength * glm::pow(deptherror, 2) * disparityDeviation;}
 
 
         // General Setters and Getters
@@ -113,12 +117,21 @@ class CoveragePlanner {
         std::vector<glm::mat4> viewpoints; // Viewpoint sampling outputs
         std::vector<glm::vec3> seenLocations; // Points outputted by the rendering x, y, z, depthFromViewpoint
 
+        float normalizedFocalLength = 2.85e-5;
+        float disparityDeviation = 0.5;
+
         float octreeResolution = 0.5;
         pcl::PointCloud<pcl::PointXYZ>::Ptr objectPointCloud;
         pcl::PointCloud<pcl::PointXYZ>::Ptr seenPointCloud;
-        std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>> octree;
+        std::shared_ptr<octomap::OcTree> seenOctree;
+        std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>> octreeChangeDetector;
 
+
+        float targetCoverage = 0.99;
+        float trajectoryCoverage = 0.0;
         std::vector<GLint> trajectory; // Indexes into viewpoints
+        float calculateEntropyOfViewpoint(glm::mat4& viewpoint, float parentEntropy, bool update);
+
 
         bool debug = false;
 

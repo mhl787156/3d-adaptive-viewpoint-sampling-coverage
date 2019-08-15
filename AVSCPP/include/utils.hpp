@@ -48,7 +48,8 @@ class LKHSolver {
         bool debug = false;
 };
 
-
 };
+
+std::vector<std::vector<int>> minimumSpanningTree(std::vector<glm::mat4> &vps);
 
 #endif
