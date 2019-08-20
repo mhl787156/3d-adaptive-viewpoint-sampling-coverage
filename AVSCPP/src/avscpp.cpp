@@ -33,6 +33,13 @@ CoveragePlanner::CoveragePlanner(AVSCPP::Renderer &renderer, AVSCPP::CameraContr
     objectPointCloud = modelMesh[0]->getPointCloud();
     seenPointCloud = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
 
+    objectOctree.reset(new octomap::OcTree(octreeResolution));
+    for(pcl::PointXYZ point: objectPointCloud->points) {
+        octomap::point3d opoint(point.x, point.y, point.z);
+        objectOctree->updateNode(opoint, true);
+    }
+    objectOctreeVolume = objectOctree -> volume();
+
     octreeChangeDetector = std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>>(
                 new pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>(octreeResolution));
 }
@@ -369,7 +376,6 @@ void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPos
     // Perform LKH on viewpoints
     AVSCPP::LKHSolver lkh;
     trajectory = lkh.solve(viewpointPositions);
-
     if(debug) {
         for(GLint k: trajectory){
             printf("%i ", k);
@@ -410,31 +416,32 @@ float CoveragePlanner::calculateEntropyOfViewpoint(glm::mat4& viewpoint, float p
         float accuracy = computeAccuracy(depth);
         float logoddsa = accuracy/(1-accuracy);
 
-        octomap::OcTreeNode* key;
-        if(key = seenOctree->search(x, y, z)) {
-
+        octomap::OcTreeNode* key = seenOctree->search(x, y, z);
+        if(key) {
+            
             // point already occupied
             float logs = key->getLogOdds();
-            float prob = logs/(1+logs);
+            float prob =  octomap::probability(logs);//logs/(1+logs);
             float entropyp = -prob * log(prob);
 
             float newlogs = logs + logoddsa;
-            float newprobs = newlogs / (1 + newlogs);
+            float newprobs = octomap::probability(newlogs); //newlogs / (1 + newlogs);
             float entropya = -newprobs * log(newprobs);
 
             if(update) {
-                key->setLogOdds(logs + logoddsa);
+                seenOctree->updateNode(x, y, z, logoddsa);
             }
 
             entropies += (entropya - entropyp);
         } else {
+
             // point not occupied
-            float newlogs = 1.0f + logoddsa; // probability 0.5
-            float newprobs = newlogs / ( 1 + newlogs );
+            float newlogs = octomap::logodds(0.5) + logoddsa; // probability 0.5
+            float newprobs = octomap::probability(newlogs); // newlogs / ( 1 + newlogs );
             float entropy = -newprobs * log(newprobs);
 
             if(update) {
-                key->setLogOdds(newlogs);
+                seenOctree->setNodeValue(x, y, z, newlogs);
             }
 
             entropies += entropy;
@@ -442,37 +449,157 @@ float CoveragePlanner::calculateEntropyOfViewpoint(glm::mat4& viewpoint, float p
 
     }
 
+    return entropies;
 }
 
 void CoveragePlanner::calculateAVSCPPTrajectories(std::vector<glm::vec3> initialPositions) {
     printf("Performing AVSCPP to solve TSP around viewpoints\n");
 
     // initialise octree
-    seenOctree = std::shared_ptr<octomap::OcTree>(new octomap::OcTree(octreeResolution));
+    seenOctree.reset(new octomap::OcTree(octreeResolution));
+
+    printf("Here!\n");
 
     // Generate Neighbourhoods using minimum spanning tree
-    std::vector<std::vector<int>> mst = minimumSpanningTree(viewpoints);
+    // std::vector<std::vector<int>> mst = minimumSpanningTree(viewpoints);
 
-    int j = 0;
-    for(auto vec: mst) {
-        printf("node %i: ", j);
-        for(int v : vec) {
-            printf("%i ", v);
-        }
-        printf("\n");
-        j++;
-    }
+    // int j = 0;
+    // for(auto vec: mst) {
+    //     printf("node %i: ", j);
+    //     for(int v : vec) {
+    //         printf("%i ", v);
+    //     }
+    //     printf("\n");
+    //     j++;
+    // }
 
+    float currentEntropy = 0.0;
+    int currentS = 0; //(int) viewpoints.size()/2.0;
 
-    std::vector<glm::mat4> openList;
-    std::vector<glm::mat4> closedList;
+    std::set<int> closedList; // already visited
 
-    openList.push_back(viewpoints[0]);
+    trajectory.push_back(currentS);
+    closedList.insert(currentS);
 
     while(trajectoryCoverage < targetCoverage) {
+        
+        printf("currentS: %i (%f, %f, %f)\n", currentS, 
+                viewpoints[currentS][3][0], viewpoints[currentS][3][1], viewpoints[currentS][3][2]);
+        printf("Coverage: %f\n", trajectoryCoverage);
+        
+        closedList.insert(currentS);
 
-        // Pick sbest from openList
-        // Rsbest = 
-        break;
+        float radii = 2.0;
+
+        std::vector<int> inRadii;
+
+        // Pick sbest from neighbours
+        int sbest = -1;
+        float bestR = -1.0f;
+        float bestEntropy = -1.0f;
+
+        std::vector<int> onSameLoc;
+        std::set<int> alreadyConsidered;
+
+        glm::mat4 parent = viewpoints[currentS];
+        glm::vec3 parentloc = glm::vec3(parent[3]);
+        octomap::point3d parentlocp3d(parentloc.x, parentloc.y, parentloc.z);
+        for(radii; radii < 20.0; radii+=2.0) {
+            // Take current vp and look for those within a radius
+            for(int r = 0; r < viewpoints.size(); r++) {
+                float dist = euclideanDistance(viewpoints[r], viewpoints[currentS]);
+                if( dist < radii
+                    && closedList.find(r) == closedList.end() // not in closed list
+                    && alreadyConsidered.find(r) == alreadyConsidered.end()) { // not in already considered
+                                        
+                    // In Radius!
+                    alreadyConsidered.insert(r);
+
+                    glm::mat4 current = viewpoints[r];
+                    glm::vec3 currentloc = glm::vec3(current[3]);
+                    octomap::point3d currentlocp3d(currentloc.x, currentloc.y, currentloc.z);
+                    
+                    // float dist = euclideanDistance(parentloc, currentloc);
+
+                    // Not on the same point
+                    if(parentloc != currentloc) {
+                        // Test for intersection
+                        // octomap::KeyRay ray;
+                        // bool rayfound = objectOctree->computeRayKeys(parentlocp3d, currentlocp3d, ray);
+                        // bool intersects = false;
+                        // for(octomap::OcTreeKey k: ray) {
+                        //     if(objectOctree->search(k) != NULL) {intersects = true; break;}
+                        // }
+                        // if(intersects){
+                        //     continue;
+                        // }
+
+                        octomap::point3d dir = currentlocp3d - parentlocp3d;
+                        octomap::point3d isect;
+                        bool intersectsCell = objectOctree->castRay(parentlocp3d, dir, isect, true, dist);
+                        if(intersectsCell) {
+                            continue;
+                        }
+
+                    } else {
+                        onSameLoc.push_back(r);
+                    }
+                    
+                    // Calculate entropy and heuristic value R
+                    float entropy = calculateEntropyOfViewpoint(viewpoints[r], currentEntropy, false);
+                    float R = entropy * exp(-heurisitcDistanceContribFactor * dist);
+                    if(R >= bestR) {
+                        sbest = r; bestR = R; bestEntropy = entropy;
+                    }
+
+
+                }
+            }
+
+            if(sbest == -1) {
+                printf("Cannot find any point, expand radius\n");
+            } else {
+                break;
+            }
+        }
+
+        // If no next point is found...
+        if(sbest == -1) {
+            printf("Cannot path to anymore points, all intersecting\n");
+            break;
+        }
+
+        // With best R apply coverage
+        currentEntropy = calculateEntropyOfViewpoint(viewpoints[sbest], currentEntropy, true);
+        printf("Sbest(%i) Current Entropy, R: %f, %f\n", sbest, currentEntropy, bestR);
+
+        // Calculate new coverage percentage
+        double seenOctreeVolume = seenOctree->volume();
+        printf("Seen Volume %f\n", seenOctreeVolume);
+        trajectoryCoverage = seenOctreeVolume / objectOctreeVolume;
+
+        // Insert new trajectory point
+        trajectory.push_back(sbest);
+
+        // Insert all the other points on the same point and remove from consideration
+        for(int s: onSameLoc) {
+            trajectory.push_back(s);
+            closedList.insert(s);
+        }
+
+        // set current node to best node
+        currentS = sbest;
+
+        // Check if all viewpoints on trajectory
+        // if(trajectory.size() >= viewpoints.size()){
+        //     printf("All Viewpoints on Trajectory\n");
+        //     break;
+        // }
     }
+
+    printf("Trajectory: ");
+    for(GLint i: trajectory) {
+        printf("%i, ", i);
+    }
+    printf("\n");
 }

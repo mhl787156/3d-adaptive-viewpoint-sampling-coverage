@@ -115,7 +115,7 @@ std::vector<GLint> LKHSolver::readLKHOutput() {
         if(line == "-1") {
             break;
         }
-        int idx = std::stoi(line);
+        int idx = std::stoi(line) - 1;
         traj_idxs.push_back(idx);
     }
     
@@ -192,3 +192,22 @@ std::vector<std::vector<int>> minimumSpanningTree(std::vector<glm::mat4> &vps) {
 
     return ret;
 } 
+
+float euclideanDistance(glm::mat4& m1, glm::mat4& m2){
+    glm::vec3 a = glm::vec3(m1[3]);
+    glm::vec3 b = glm::vec3(m2[3]);
+    return euclideanDistance(a, b);
+}
+
+float euclideanDistance(glm::vec3 &v1, glm::vec3 &v2){
+    float x = pow(v1[0] - v2[0], 2.0f);
+    float y = pow(v1[1] - v2[1], 2.0f);
+    float z = pow(v1[2] - v2[2], 2.0f);
+    return sqrt(x + y + z);
+}
+
+struct FirstPairComparison {
+    bool operator()(const std::pair<float, int>& s1, const std::pair<float, int>& s2) {
+       return s1.first < s2.first;
+   }
+};

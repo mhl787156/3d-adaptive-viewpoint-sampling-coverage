@@ -335,6 +335,12 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     axis.push_back(glm::vec3(0.0, 0.0, 0.0));
     axis.push_back(glm::vec3(0.0, 0.0, axisLength));
 
+
+    glm::mat4 extra_point;
+    extra_point[3] = glm::vec4(-15.45, -1.05, -4.95, 1.0);
+    viewpoints.push_back(extra_point);
+
+
     std::vector<glm::vec3> vps;
     std::vector<glm::vec3> lines;
     std::vector<glm::vec3> xylines;
@@ -360,7 +366,7 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
 
     std::vector<glm::vec3> trajpoints;
     for(GLint traj_idx: trajectory) {
-        trajpoints.push_back(vps[traj_idx-1]);
+        trajpoints.push_back(vps[traj_idx]);
     }
 
     // Green Z lines for each viewpoint

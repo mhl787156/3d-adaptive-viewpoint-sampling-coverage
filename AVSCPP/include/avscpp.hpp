@@ -20,6 +20,7 @@
 #include <limits>
 #include <vector>
 #include <memory>
+#include <set>
 
 // PointCloudLibrary
 #include <pcl/point_cloud.h>
@@ -120,15 +121,18 @@ class CoveragePlanner {
         float normalizedFocalLength = 2.85e-5;
         float disparityDeviation = 0.5;
 
-        float octreeResolution = 0.5;
+        float octreeResolution = 0.3;
         pcl::PointCloud<pcl::PointXYZ>::Ptr objectPointCloud;
+        std::unique_ptr<octomap::OcTree> objectOctree;
+        double objectOctreeVolume; 
         pcl::PointCloud<pcl::PointXYZ>::Ptr seenPointCloud;
-        std::shared_ptr<octomap::OcTree> seenOctree;
+        std::unique_ptr<octomap::OcTree> seenOctree;
         std::shared_ptr<pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZ>> octreeChangeDetector;
 
 
-        float targetCoverage = 0.99;
-        float trajectoryCoverage = 0.0;
+        double targetCoverage = 0.99;
+        double trajectoryCoverage = 0.0;
+        float heurisitcDistanceContribFactor = 0.2;
         std::vector<GLint> trajectory; // Indexes into viewpoints
         float calculateEntropyOfViewpoint(glm::mat4& viewpoint, float parentEntropy, bool update);
 

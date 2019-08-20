@@ -33,6 +33,7 @@ find_package( Boost REQUIRED COMPONENTS system)
 
 find_package( octomap REQUIRED )
 
+
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
 else()

@@ -52,4 +52,7 @@ class LKHSolver {
 
 std::vector<std::vector<int>> minimumSpanningTree(std::vector<glm::mat4> &vps);
 
+float euclideanDistance(glm::mat4& m1, glm::mat4& m2);
+float euclideanDistance(glm::vec3 &v1, glm::vec3 &v2);
+
 #endif
