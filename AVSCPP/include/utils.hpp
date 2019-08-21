@@ -24,7 +24,7 @@ namespace AVSCPP {
 
 class LKHSolver {
     public:
-        std::vector<GLint> solve(std::vector<glm::vec3> &points);
+        std::vector<GLint> solve(std::vector<glm::vec3> &points, std::vector<float> &weights);
         void setDebug(bool d) {debug = d;}
 
         float getTourLength() {return tourLength;}
@@ -38,7 +38,7 @@ class LKHSolver {
         std::string Outputfilename = tmpLKHDir + "viewpoints.output";
 
     private:
-        void writeTSPandParamtoFile(std::vector<glm::vec3> &points);
+        void writeTSPandParamtoFile(std::vector<glm::vec3> &points, std::vector<float> &weights);
         void runLKH();
         std::vector<GLint> readLKHOutput();
         void cleanUp();

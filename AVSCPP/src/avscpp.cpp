@@ -372,16 +372,41 @@ void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPos
     for(glm::mat4 vp : viewpoints) {
         viewpointPositions.push_back(glm::vec3(vp[3]));
     }
+    
+    std::vector<GLfloat> weights;
+    for(int i = 0; i < viewpoints.size(); i++) {
+        glm::vec3 p1 = viewpointPositions[i];
+        octomap::point3d p1o(p1.x, p1.y, p1.z);
+        for(int j = 0; j < i; j++) {
+            glm::vec3 p2 = viewpointPositions[j];
+            octomap::point3d p2o(p2.x, p2.y, p2.z);
+
+            if(p1 != p2) {
+                float dist = euclideanDistance(p1, p2);
+                octomap::point3d dir = p2o - p1o;
+                octomap::point3d isect;
+                bool intersectsCell = objectOctree->castRay(p1o, dir, isect, true, dist);
+                if(intersectsCell) {
+                    // If intersects cell, set to large weight
+                    weights.push_back(10000.0f);
+                } else {
+                    weights.push_back(dist);
+                }            
+            } else {
+                weights.push_back(0.0);
+            }
+        }
+    }
 
     // Perform LKH on viewpoints
     AVSCPP::LKHSolver lkh;
-    trajectory = lkh.solve(viewpointPositions);
-    if(debug) {
+    trajectory = lkh.solve(viewpointPositions, weights);
+    // if(debug) {
         for(GLint k: trajectory){
             printf("%i ", k);
         }
         printf("\n");
-    }
+    // }
     
     // Find node closest to initial position
     // TODO

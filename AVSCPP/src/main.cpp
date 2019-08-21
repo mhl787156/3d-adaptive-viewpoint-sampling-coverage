@@ -31,7 +31,6 @@ int main(int argc, char * argv[]) {
         if(std::string(argv[i]) == "-it") {iterations = std::stoi(std::string(argv[++i])); continue;}
         if(std::string(argv[i]) == "-lkh") {runLKH = true; continue;}
         if(std::string(argv[i]) == "-nv") {numViews = std::stoi(std::string(argv[++i])); continue;}
-
     }
    
     // Init OpenGL
@@ -92,15 +91,17 @@ int main(int argc, char * argv[]) {
 
         boundingBoxes.clear();
     }
+    printf("######## Iterations Complete #######\n", it+1);
+
 
 
     std::vector<glm::vec3> initialPos;
     initialPos.push_back(glm::vec3(10.0, 10.0, 10.0));
     if(runLKH) {
         planner.calculateLKHTrajectories(initialPos);
+    } else {
+        planner.calculateAVSCPPTrajectories(initialPos);
     }
-
-    planner.calculateAVSCPPTrajectories(initialPos);
 
 
     // Calculate best Path through using heuristic and maybe some more rendering

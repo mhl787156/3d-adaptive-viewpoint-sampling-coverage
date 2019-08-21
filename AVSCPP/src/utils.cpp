@@ -5,9 +5,9 @@
 
 using namespace AVSCPP;
 
-std::vector<GLint> LKHSolver::solve(std::vector<glm::vec3> &points) {
+std::vector<GLint> LKHSolver::solve(std::vector<glm::vec3> &points, std::vector<float> &weights) {
 
-    writeTSPandParamtoFile(points);
+    writeTSPandParamtoFile(points, weights);
 
     runLKH();
 
@@ -18,7 +18,7 @@ std::vector<GLint> LKHSolver::solve(std::vector<glm::vec3> &points) {
     return traj;
 }
 
-void LKHSolver::writeTSPandParamtoFile(std::vector<glm::vec3>& points) {
+void LKHSolver::writeTSPandParamtoFile(std::vector<glm::vec3>& points, std::vector<float> &weights) {
 
     int num_points = points.size();
 
@@ -46,14 +46,22 @@ void LKHSolver::writeTSPandParamtoFile(std::vector<glm::vec3>& points) {
     TSPFile << "Comment : Lets find some viewpoints" << std::endl;
     TSPFile << "Type : TSP" << std::endl;
     TSPFile << "Dimension : " << num_points << std::endl;
-    TSPFile << "EDGE_WEIGHT_TYPE : EUC_3D" << std::endl;
-    TSPFile << "NODE_COORD_TYPE : THREED_COORDS" << std::endl;
-    TSPFile << "NODE_COORD_SECTION" << std::endl;  
-
+    TSPFile << "EDGE_WEIGHT_TYPE : EXPLICIT" << std::endl;
+    TSPFile << "EDGE_WEIGHT_FORMAT : LOWER_ROW" << std::endl;
+    TSPFile << "EDGE_WEIGHT_SECTION" << std::endl;  
+    int num = 0;
     for(int i = 0; i < num_points; i++) {
-        glm::vec3 p = points[i];
-        TSPFile << i+1 << " " << p[0] << " " << p[1] << " " << p[2] << std::endl;
+        for(int j = 0; j < i; j++) {
+            float k = weights[num++];
+            TSPFile << int(k * 1000);
+            if(j != num_points-1) {
+                TSPFile << " ";
+            }
+        }
+        TSPFile << std::endl;
     }
+
+    TSPFile << "EOF" << std::endl;
     TSPFile.close();
     printf("LKH TSPFile Written\n");
 

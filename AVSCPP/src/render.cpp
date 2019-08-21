@@ -336,9 +336,9 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     axis.push_back(glm::vec3(0.0, 0.0, axisLength));
 
 
-    glm::mat4 extra_point;
-    extra_point[3] = glm::vec4(-15.45, -1.05, -4.95, 1.0);
-    viewpoints.push_back(extra_point);
+    // glm::mat4 extra_point;
+    // extra_point[3] = glm::vec4(-15.45, -1.05, -4.95, 1.0);
+    // viewpoints.push_back(extra_point);
 
 
     std::vector<glm::vec3> vps;
