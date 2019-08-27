@@ -40,7 +40,7 @@ class Renderer {
 
         void displayViewpoints(AVSCPP::CameraControl &camera, 
                                std::vector<glm::mat4> &viewpoints,
-                               std::vector<GLint>& trajectory,
+                               std::vector<std::vector<GLint>>& trajectory,
                                std::vector<glm::vec3> &seenPoints,
                                std::vector<AVSCPP::Mesh*> modelMesh);
 

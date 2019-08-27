@@ -401,6 +401,7 @@ void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPos
     // Perform LKH on viewpoints
     AVSCPP::LKHSolver lkh;
     trajectory = lkh.solve(viewpointPositions, weights);
+    printf("Trajectory: ");
     // if(debug) {
         for(GLint k: trajectory){
             printf("%i ", k);
@@ -627,4 +628,52 @@ void CoveragePlanner::calculateAVSCPPTrajectories(std::vector<glm::vec3> initial
         printf("%i, ", i);
     }
     printf("\n");
+}
+
+std::vector<float> CoveragePlanner::calculateTrajectoriesLengths() {
+
+    std::vector<float> lengths;
+    for(std::vector<GLint> traj: trajectories) {
+        float len = 0;
+        glm::vec3 prev_point = glm::vec3(viewpoints[traj[0]][3]);
+        for(int i = 1; i < traj.size(); i++) {
+            glm::vec3 curr_point = glm::vec3(viewpoints[traj[i]][3]);
+            len += euclideanDistance(prev_point, curr_point);
+            prev_point = curr_point;
+        }
+        lengths.push_back(len);
+    }
+    return lengths;
+}
+
+// TODO
+void CoveragePlanner::allocateMultiAgentTrajectories(int num_drones) {
+
+    std::vector<GLint> trajs;
+    int i = 1;
+    int thresh = ((int) (trajectory.size() / ((float) num_drones))) + 1;
+    printf("Allocating Trajectories (%i/%lu):\n%i: ", thresh, trajectory.size(), i);
+    for(int j = 0; j < trajectory.size(); j++) {
+        if(j >= i * thresh) {
+            printf(", Length (%lu)", trajs.size());
+            trajectories.push_back(trajs);
+            trajs = std::vector<GLint>();
+            i++;
+            printf("\n%i: ", i);
+        }
+
+        trajs.push_back(trajectory[j]);
+        printf("%i ", trajectory[j]);
+    }
+    trajectories.push_back(trajs);
+    printf(", Length (%lu)\n", trajs.size());
+
+    std::vector<float> lengths = calculateTrajectoriesLengths();
+    printf("Trajectory lengths: ");
+    for(float l: lengths) {
+        printf("%f, ", l);
+    }
+    printf("\n");
+
+    printf("-----\n");
 }

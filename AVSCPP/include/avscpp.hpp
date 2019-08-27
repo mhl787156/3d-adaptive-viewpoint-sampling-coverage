@@ -85,11 +85,14 @@ class CoveragePlanner {
         void calculateAVSCPPTrajectories(std::vector<glm::vec3> initialPositions);
 
         void addTrajectoryPoint(int i) {trajectory.push_back(i);}
-        std::vector<GLint> getTrajectories(){return trajectory;}
+        std::vector<std::vector<GLint>> getTrajectories(){return trajectories;}
 
         // Probability Calc
         float computeAccuracy(float deptherror) {return normalizedFocalLength * glm::pow(deptherror, 2) * disparityDeviation;}
 
+        // Multi-Agent Path Plan
+        void allocateMultiAgentTrajectories(int num_drones);
+        std::vector<float> calculateTrajectoriesLengths();
 
         // General Setters and Getters
         void setDepthRange(GLfloat min, GLfloat max) {depthMin=min;depthMax=max;}
@@ -134,6 +137,7 @@ class CoveragePlanner {
         double trajectoryCoverage = 0.0;
         float heurisitcDistanceContribFactor = 0.2;
         std::vector<GLint> trajectory; // Indexes into viewpoints
+        std::vector<std::vector<GLint>> trajectories;
         float calculateEntropyOfViewpoint(glm::mat4& viewpoint, float parentEntropy, bool update);
 
 

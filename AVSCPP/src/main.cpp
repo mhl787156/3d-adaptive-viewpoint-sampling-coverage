@@ -16,6 +16,7 @@ int waitMillis = 0;
 int iterations = 1;
 bool runLKH = false;
 int numViews = 4;
+int numDrones = 2;
 
 // Function declarations
 std::vector<AVSCPP::Mesh*> loadMeshes();
@@ -31,6 +32,7 @@ int main(int argc, char * argv[]) {
         if(std::string(argv[i]) == "-it") {iterations = std::stoi(std::string(argv[++i])); continue;}
         if(std::string(argv[i]) == "-lkh") {runLKH = true; continue;}
         if(std::string(argv[i]) == "-nv") {numViews = std::stoi(std::string(argv[++i])); continue;}
+        if(std::string(argv[i]) == "-n") {numDrones = std::stoi(std::string(argv[++i])); continue;}
     }
    
     // Init OpenGL
@@ -91,7 +93,7 @@ int main(int argc, char * argv[]) {
 
         boundingBoxes.clear();
     }
-    printf("######## Iterations Complete #######\n", it+1);
+    printf("######## Iterations Complete #######\n");
 
 
 
@@ -104,15 +106,17 @@ int main(int argc, char * argv[]) {
     }
 
 
+    planner.allocateMultiAgentTrajectories(numDrones);
+
     // Calculate best Path through using heuristic and maybe some more rendering
     std::vector<glm::mat4> viewpoints = planner.getViewpoints();
     std::vector<glm::vec3> seenpoints = planner.getSeenpoints(0.1f);
-    std::vector<GLint> trajectory = planner.getTrajectories();
+    std::vector<std::vector<GLint>> trajectories = planner.getTrajectories();
 
     
 
     camera.setDisplayRange(glm::vec2(0.1f, 10000.0f));
-    renderer.displayViewpoints(camera, viewpoints, trajectory, seenpoints, meshes);
+    renderer.displayViewpoints(camera, viewpoints, trajectories, seenpoints, meshes);
     
 
     return EXIT_SUCCESS;

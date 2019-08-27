@@ -318,7 +318,7 @@ GLint Renderer::pixelIndex(GLint *b, int w, int h, int c) {
 
 void Renderer::displayViewpoints(AVSCPP::CameraControl &camera, 
                                  std::vector<glm::mat4> &viewpoints,
-                                 std::vector<GLint>& trajectory,
+                                 std::vector<std::vector<GLint>>& trajectories,
                                  std::vector<glm::vec3> &seenPoints,
                                  std::vector<AVSCPP::Mesh*> meshes) {
     
@@ -364,9 +364,13 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
         vps.push_back(glm::vec3(vp[3]));
     }
 
-    std::vector<glm::vec3> trajpoints;
-    for(GLint traj_idx: trajectory) {
-        trajpoints.push_back(vps[traj_idx]);
+    std::vector<std::vector<glm::vec3>> trajpoints;
+    for(std::vector<GLint> agent_traj: trajectories) {
+        std::vector<glm::vec3> t;
+        for(GLint traj_idx: agent_traj) {
+            t.push_back(vps[traj_idx]);
+        }
+        trajpoints.push_back(t);
     }
 
     // Green Z lines for each viewpoint
@@ -399,12 +403,15 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * seenPoints.size(), &seenPoints[0], GL_STATIC_DRAW);
 
     // Trajectory Line Strip
-    GLuint tVAO, tVBO;
+    GLuint tVAO;
+    std::vector<GLuint> tVBOs(trajectories.size());
     glGenVertexArrays(1, &tVAO);
     glBindVertexArray(tVAO);
-    glGenBuffers(1, &tVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, tVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * trajpoints.size(), &trajpoints[0], GL_STATIC_DRAW);
+    for(int i = 0; i < tVBOs.size(); i++) {
+        glGenBuffers(1, &(tVBOs[i]));
+        glBindBuffer(GL_ARRAY_BUFFER, tVBOs[i]);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * trajpoints[i].size(), &(trajpoints[i][0]), GL_STATIC_DRAW);
+    }
 
     glClearColor(0.0, 0.0, 0.5, 0.0); 
     
@@ -451,12 +458,15 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
 
         // Draw trajectory lines
         normalShader->bind("MVP", VP);
-        normalShader->bind("in_colour", glm::vec4(1.0, 0.5, 1.0, 1.0));
-        glBindVertexArray(tVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, tVBO);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-        glDrawArrays(GL_LINE_STRIP, 0, trajpoints.size());
+        glBindVertexArray(tVAO);       
+        float colour = 1.0/((float)tVBOs.size());
+        for(int i = 0; i < tVBOs.size(); i++) {
+            normalShader->bind("in_colour", glm::vec4(0.4, i * colour, 1 - (i*colour), 1.0));
+            glBindBuffer(GL_ARRAY_BUFFER, tVBOs[i]);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+            glDrawArrays(GL_LINE_STRIP, 0, trajectories[i].size());
+        }
 
         // Draw viewpoint axis
         normalShader->bind("MVP", VP);
