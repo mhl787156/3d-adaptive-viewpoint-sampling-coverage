@@ -55,23 +55,69 @@ std::vector<glm::vec3> CoveragePlanner::generatePositions(GLfloat resX, GLfloat 
 std::vector<glm::vec3> CoveragePlanner::generatePositions(std::vector<GLfloat> boundingBox, GLfloat resX, GLfloat resY, GLfloat resZ) {
     std::vector<glm::vec3> viewpoint_samples;
 
-    float lowboundX = (boundingBox[0] + boundingBox[1]) / 2.0; 
-    float lowboundY = (boundingBox[2] + boundingBox[3]) / 2.0; 
-    float lowboundZ = (boundingBox[4] + boundingBox[5]) / 2.0; 
+    std::vector<float> xlocs;
+    std::vector<float> ylocs;
+    std::vector<float> zlocs;
 
-    while(lowboundX > boundingBox[0] || lowboundY > boundingBox[2] || lowboundZ > boundingBox[4] ) {
-        if(lowboundX > boundingBox[0]){lowboundX -= resX;}
-        if(lowboundY > boundingBox[2]){lowboundY -= resY;}
-        if(lowboundZ > boundingBox[4]){lowboundZ -= resZ;}
+    float centreX = (boundingBox[0] + boundingBox[1]) / 2.0; 
+    float centreY = (boundingBox[2] + boundingBox[3]) / 2.0; 
+    float centreZ = (boundingBox[4] + boundingBox[5]) / 2.0; 
+
+    float numX = (boundingBox[1] - boundingBox[0]) / resX; 
+    float numY = (boundingBox[3] - boundingBox[2]) / resY; 
+    float numZ = (boundingBox[5] - boundingBox[4]) / resZ;
+
+    bool Xeven = int(floor(numX))%2==0;
+    bool Yeven = int(floor(numY))%2==0;
+    bool Zeven = int(floor(numZ))%2==0;
+
+    // printf("num: %f %f %f\n", numX, numY, numZ);
+    // printf("evens: %i %i %i\n", Xeven, Yeven, Zeven);
+
+    int i = 0;
+    while(centreX + resX * i + (Xeven?0:resX/2.0) <= boundingBox[1]+1e-2){
+        float val = resX * i + (Xeven?0:resX/2.0);
+        xlocs.push_back(centreX + val);
+        xlocs.push_back(centreX - val);
+        i += 1;
     }
 
-    for(float x = lowboundX + resX; x <= boundingBox[1]; x+=resX) {
-        for(float y = lowboundY + resY; y <= boundingBox[3]; y+=resY) {
-            for(float z = lowboundZ + resZ; z <= boundingBox[5]; z+=resZ) {
+    i = 0;
+    while(centreY + resY * i + (Yeven?0:resY/2.0) <= boundingBox[3]+1e-2){
+        ylocs.push_back(centreY + resY * i + (Yeven?0:resY/2.0));
+        ylocs.push_back(centreY - resY * i - (Yeven?0:resY/2.0));
+        i += 1;
+    }
+
+    i = 0;
+    while(centreZ + resZ * i + (Zeven?0:resZ/2.0) <= boundingBox[5]+1e-2){
+        zlocs.push_back(centreZ + resZ * i + (Zeven?0:resZ/2.0));
+        zlocs.push_back(centreZ - resZ * i - (Zeven?0:resZ/2.0));
+        i += 1;
+    }
+
+    for(float x: xlocs) {
+        for(float y: ylocs) {
+            for(float z:zlocs) {
+                // printf("%f %f %f\n", x, y, z);
                 viewpoint_samples.push_back(glm::vec3(x, y, z));
             }
         }
     }
+
+    // while(lowboundX > boundingBox[0] || lowboundY > boundingBox[2] || lowboundZ > boundingBox[4] ) {
+    //     if(lowboundX > boundingBox[0]){lowboundX -= resX;}
+    //     if(lowboundY > boundingBox[2]){lowboundY -= resY;}
+    //     if(lowboundZ > boundingBox[4]){lowboundZ -= resZ;}
+    // }
+
+    // for(float x = lowboundX + resX; x <= boundingBox[1]; x+=resX) {
+    //     for(float y = lowboundY + resY; y <= boundingBox[3]; y+=resY) {
+    //         for(float z = lowboundZ + resZ; z <= boundingBox[5]; z+=resZ) {
+    //             viewpoint_samples.push_back(glm::vec3(x, y, z));
+    //         }
+    //     }
+    // }
 
     return viewpoint_samples;
 }
@@ -113,7 +159,7 @@ void CoveragePlanner::sampleViewpointsNumPoints(std::vector<GLfloat> boundingBox
     
     // Reduce number of views until resolution is greater than min resolution
     for(int i = 0; i < res.size(); i++) {
-        for(int x = nums[i]; x > 0; x--) {
+        for(int x = nums[i]-1; x > 0; x--) {
             res[i] = glm::abs(boundingBox[i+1] - boundingBox[i]) / (float) x;
             if(res[i] > minResolution[i]) {break;}
         }

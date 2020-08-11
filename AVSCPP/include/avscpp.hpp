@@ -102,14 +102,14 @@ class CoveragePlanner {
     
     private:
 
-        GLfloat depthMin = 1;
+        GLfloat depthMin = 0.8;
         GLfloat depthMax = 5;
 
         AVSCPP::Renderer *renderer;
         AVSCPP::CameraControl *camera;
         std::vector<AVSCPP::Mesh*> meshes;
 
-        float boundingBoxScaler = 1.5;
+        float boundingBoxScaler = 2.0;
         std::vector<GLfloat> boundingBox = {
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // xmin xmax
             std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), // ymin ymax

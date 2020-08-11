@@ -63,10 +63,15 @@ int main(int argc, char * argv[]) {
 
     AVSCPP::CoveragePlanner planner(renderer, camera, meshes);
     planner.setDebug(setDebug);
-    planner.setMinResolution(1.0, 1.0, 1.0);
+    // planner.setMinResolution(1.0, 1.0, 1.0);
+    planner.setMinResolution(0.2, 0.2, 0.2);
+
+    std::vector<float> bbox = planner.getBoundingBox();
+    // planner.sampleViewpointsNumPoints(bbox, numViews, numViews, numViews, M_PI/8);
+    planner.sampleViewpointsNumPoints(bbox, 4, 3, 4, M_PI/8);
 
     std::vector<std::vector<float>> boundingBoxes;
-    boundingBoxes.push_back(planner.getBoundingBox());
+    boundingBoxes.push_back(bbox);
 
     for(int it = 0; it < iterations; it++) {
         printf("######## Iteration %i #######\n", it+1);
@@ -98,7 +103,8 @@ int main(int argc, char * argv[]) {
 
 
     std::vector<glm::vec3> initialPos;
-    initialPos.push_back(glm::vec3(10.0, 10.0, 10.0));
+    // initialPos.push_back(glm::vec3(10.0, 10.0, 10.0));
+    initialPos.push_back(glm::vec3(2.0, 2.0, 2.0));
     if(runLKH) {
         planner.calculateLKHTrajectories(initialPos);
     } else {

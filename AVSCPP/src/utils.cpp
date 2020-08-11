@@ -13,7 +13,7 @@ std::vector<GLint> LKHSolver::solve(std::vector<glm::vec3> &points, std::vector<
 
     std::vector<GLint> traj = readLKHOutput();
 
-    cleanUp();
+    // cleanUp();
 
     return traj;
 }
