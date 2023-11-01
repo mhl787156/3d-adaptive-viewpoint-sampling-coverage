@@ -17,10 +17,14 @@ int iterations = 1;
 bool runLKH = false;
 int numViews = 4;
 int numDrones = 2;
+float resolution = 0.0;
+bool forceSquare = false;
+std::string objectfilename="aeroplane3";
 
 // Function declarations
 std::vector<AVSCPP::Mesh*> loadMeshes();
 void loadShaders(AVSCPP::Renderer &renderer, AVSCPP::CameraControl &camera);
+std::vector<float> forceSquareBBOX(std::vector<float> boundingbox);
 
 int main(int argc, char * argv[]) {
 
@@ -30,9 +34,12 @@ int main(int argc, char * argv[]) {
         if(std::string(argv[i]) == "-rt") {renderTesting = true; continue;}
         if(std::string(argv[i]) == "-w") {waitMillis = std::stoi(std::string(argv[++i])); continue;}
         if(std::string(argv[i]) == "-it") {iterations = std::stoi(std::string(argv[++i])); continue;}
+        if(std::string(argv[i]) == "-res") {resolution = std::stof(std::string(argv[++i])); continue;}
         if(std::string(argv[i]) == "-lkh") {runLKH = true; continue;}
+        if(std::string(argv[i]) == "-fsquare") {forceSquare = true; continue;}
         if(std::string(argv[i]) == "-nv") {numViews = std::stoi(std::string(argv[++i])); continue;}
         if(std::string(argv[i]) == "-n") {numDrones = std::stoi(std::string(argv[++i])); continue;}
+        if(std::string(argv[i]) == "-filename") {objectfilename = std::string(argv[++i]); continue;}
     }
    
     // Init OpenGL
@@ -63,12 +70,19 @@ int main(int argc, char * argv[]) {
 
     AVSCPP::CoveragePlanner planner(renderer, camera, meshes);
     planner.setDebug(setDebug);
-    // planner.setMinResolution(1.0, 1.0, 1.0);
-    planner.setMinResolution(0.2, 0.2, 0.2);
+    planner.setMinResolution(1.0, 1.0, 1.0);
+    // planner.setMinResolution(0.2, 0.2, 0.2);
 
     std::vector<float> bbox = planner.getBoundingBox();
-    // planner.sampleViewpointsNumPoints(bbox, numViews, numViews, numViews, M_PI/8);
-    planner.sampleViewpointsNumPoints(bbox, 4, 3, 4, M_PI/8);
+    // if(forceSquare) {bbox = forceSquareBBOX(bbox);}
+    if(resolution > 0) {
+        planner.sampleViewpointsResolution(bbox, resolution, resolution, resolution, M_PI/8);    
+    } else {
+        planner.sampleViewpointsNumPoints(bbox, numViews, numViews, numViews, M_PI/8);    
+    }
+    
+    // planner.sampleViewpointsNumPoints(bbox, 4, 3, 4, M_PI/8);
+    // planner.sampleViewpointsResolution(bbox, 2.5, 2.5, 2.5, M_PI/8);
 
     std::vector<std::vector<float>> boundingBoxes;
     boundingBoxes.push_back(bbox);
@@ -91,6 +105,7 @@ int main(int argc, char * argv[]) {
         }
 
         for(std::vector<float> bbox: boundingBoxes) {
+            // if(forceSquare) {bbox = forceSquareBBOX(bbox);}
             // Planner renders a set of viewpoints using a default resolution
             // passing an empty vector will cause the full Mesh bounding box to be used.
             planner.sampleViewpointsNumPoints(bbox, numViews, numViews, numViews, M_PI/8);
@@ -119,11 +134,14 @@ int main(int argc, char * argv[]) {
     std::vector<glm::vec3> seenpoints = planner.getSeenpoints(0.1f);
     std::vector<std::vector<GLint>> trajectories = planner.getTrajectories();
 
-    
+    std::stringstream vpfilename;
+    vpfilename << objectfilename << "_r" << resolution << "_n" << numViews;
+    std::string vpfname = vpfilename.str();    
+    saveViewpointsToFile(vpfname, viewpoints);
 
+    printf("Displaying Viewpoints");
     camera.setDisplayRange(glm::vec2(0.1f, 10000.0f));
-    renderer.displayViewpoints(camera, viewpoints, trajectories, seenpoints, meshes);
-    
+    renderer.displayViewpoints(camera, viewpoints, trajectories, seenpoints, meshes);    
 
     return EXIT_SUCCESS;
 }
@@ -131,9 +149,9 @@ int main(int argc, char * argv[]) {
 std::vector<AVSCPP::Mesh*> loadMeshes() {
     std::vector<AVSCPP::Mesh*> meshes;
 
-    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/aeroplane3";
+    std::string const modelPath = PROJECT_SOURCE_DIR "/resources/models/" + objectfilename;
     AVSCPP::Mesh* modelPoints = new AVSCPP::Mesh(modelPath);
-    // glm::mat4 modelMat = glm::yawPitchRoll(0.0f, (float)M_PI/2, 0.0f);
+    // glm::mat4 modelMat = glm::yawPitchRoll(0.0f, (float)M_PI, 0.0f);
     glm::mat4 modelMat = glm::mat4(1.0);
     modelPoints->setModelMatrix(modelMat);
     meshes.push_back(modelPoints);
@@ -165,4 +183,20 @@ void loadShaders(AVSCPP::Renderer &renderer, AVSCPP::CameraControl &camera) {
     projshader->link();
 
     renderer.setShaders(shader, projshader, intshader, camera);
+}
+
+std::vector<float> forceSquareBBOX(std::vector<float> boundingBox) {
+    int best_i = 0;
+    GLfloat max_width = 0;
+    for(int i=0; i <3; i++){
+        GLfloat axiswidth = boundingBox[i*2+1] - boundingBox[i*2];
+        if(axiswidth > max_width){max_width = axiswidth; best_i =i;}
+    }
+    GLfloat bestmin = boundingBox[best_i*2];
+    GLfloat bestmax = boundingBox[best_i*2+1];
+    for(int i=0; i <3; i++){
+        boundingBox[i*2+1] = bestmax;
+        boundingBox[i*2] = bestmin;
+    }
+    return boundingBox;
 }

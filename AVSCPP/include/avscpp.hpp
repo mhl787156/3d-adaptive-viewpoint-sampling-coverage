@@ -103,7 +103,7 @@ class CoveragePlanner {
     private:
 
         GLfloat depthMin = 0.8;
-        GLfloat depthMax = 5;
+        GLfloat depthMax = 5; // Was 5m
 
         AVSCPP::Renderer *renderer;
         AVSCPP::CameraControl *camera;

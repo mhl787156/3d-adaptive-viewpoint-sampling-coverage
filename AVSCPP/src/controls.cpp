@@ -59,11 +59,15 @@ namespace AVSCPP {
 	}
 
 	void CameraControl::resetView() {
-		position = glm::vec3(10, 10, 10);
+		position = glm::vec3(0, 50, 50); // y, z, x
 		lookat = glm::vec3(0.0, 0.0, 0.0);
 		glm::vec3 pl = lookat - position; // position - lookat;
-		horizontalAngle = atan2(pl[1], pl[0] );
-		verticalAngle = -atan2(pl[2], pl[0] * cos(horizontalAngle));
+		horizontalAngle = atan2(pl[0], pl[2] );
+		if(pl[0] == 0) {
+			verticalAngle = atan2(pl[1], pl[2] * cos(horizontalAngle));
+		} else {
+			verticalAngle = atan2(pl[1], pl[0] * sin(horizontalAngle));
+		}
 	}
 
 	void CameraControl::computeMatricesFromInputs(){

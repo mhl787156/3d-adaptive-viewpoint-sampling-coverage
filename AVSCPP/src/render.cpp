@@ -329,9 +329,9 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     float axisLength = camera.getDisplayRange()[1];
     std::vector<glm::vec3> axis;
     axis.push_back(glm::vec3(0.0, 0.0, 0.0));
-    axis.push_back(glm::vec3(axisLength, 0.0, 0.0));
+    axis.push_back(glm::vec3(axisLength*2, 0.0, 0.0));
     axis.push_back(glm::vec3(0.0, 0.0, 0.0));
-    axis.push_back(glm::vec3(0.0, axisLength, 0.0));
+    axis.push_back(glm::vec3(0.0, axisLength*0.5, 0.0));
     axis.push_back(glm::vec3(0.0, 0.0, 0.0));
     axis.push_back(glm::vec3(0.0, 0.0, axisLength));
 
@@ -418,6 +418,7 @@ void Renderer::displayViewpoints(AVSCPP::CameraControl &camera,
     glEnable(GL_DEPTH_TEST);
     // glEnable(GL_CULL_FACE); 
 
+    camera.resetView();
     while(canRender()){
         // per-frame time logic
         // --------------------

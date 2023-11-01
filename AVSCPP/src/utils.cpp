@@ -34,6 +34,21 @@ void LKHSolver::writeTSPandParamtoFile(std::vector<glm::vec3>& points, std::vect
         }
     }
 
+    std::ofstream PointsFile;
+    PointsFile.open(Pointsfilename);
+    if(!PointsFile.is_open()) {
+        printf("LKH PointsFile did not open! %s\n", TSPfilename.c_str());
+        exit(1);
+    }
+    PointsFile << "Name : " << name << std::endl;
+    PointsFile << "Comment : Lets find some viewpoints" << std::endl;
+    for(int i = 0; i < num_points; i++) {
+        glm::vec3 p = points[i];
+        PointsFile << i+1 << " " << p[0] << " " << p[1] << " " << p[2] << std::endl;
+    }
+    PointsFile.close();
+    printf("LKH PointsFile Written\n");
+
     std::ofstream TSPFile;
     TSPFile.open(TSPfilename);
 
@@ -219,3 +234,45 @@ struct FirstPairComparison {
        return s1.first < s2.first;
    }
 };
+
+void saveViewpointsToFile(std::string &filename, std::vector<glm::mat4> &points) {
+    std::string SaveDir = PROJECT_SOURCE_DIR "/saved/";
+    std::string Savefilename = SaveDir + filename + ".vp";
+
+    int num_points = points.size();
+
+    // Ensure tmp directory is created
+    struct stat sb;
+    if (!(stat(SaveDir.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)))
+    {
+        int status = mkdir(SaveDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        if (-1 == status)
+        {
+            printf("Error creating directory!: %s\n", SaveDir.c_str());
+            exit(1);
+        }
+    }
+
+    std::ofstream SaveFile;
+    SaveFile.open(Savefilename);
+    if(!SaveFile.is_open()) {
+        printf("Viewpoints savefile did not open! %s\n", Savefilename.c_str());
+        exit(1);
+    }
+    SaveFile << "Name : " << filename << std::endl;
+    SaveFile << "Dims : 4" << std::endl;
+    SaveFile << "Num_Points : " << num_points << std::endl;
+    SaveFile << "Comment : Lets find some viewpoints, columnwise 00 10 20 30 01 11 21 31 02 12 22 32 03 13 23 33" << std::endl;
+    for(int i = 0; i < num_points; i++) {
+        glm::mat4 p = points[i];
+        SaveFile << i+1;
+        for(int j = 0; j < 4; j++){
+            for(int k = 0; k < 4; k++) {
+                SaveFile << " " << p[j][k];
+            }
+        }
+        SaveFile << std::endl;
+    }
+    SaveFile.close();
+    printf("Viewpoints File Written\n");
+}

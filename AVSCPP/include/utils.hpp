@@ -33,6 +33,7 @@ class LKHSolver {
         std::string LKHDir = PROJECT_SOURCE_DIR "/external/LKH/";
         std::string LKHExe = "LKH";
         std::string tmpLKHDir = PROJECT_SOURCE_DIR "/tmp_lkh/";
+        std::string Pointsfilename = tmpLKHDir + "viewpoints.points";
         std::string TSPfilename = tmpLKHDir + "viewpoints.tsp";
         std::string Paramfilename = tmpLKHDir + "viewpoints.par";
         std::string Outputfilename = tmpLKHDir + "viewpoints.output";
@@ -54,5 +55,7 @@ std::vector<std::vector<int>> minimumSpanningTree(std::vector<glm::mat4> &vps);
 
 float euclideanDistance(glm::mat4& m1, glm::mat4& m2);
 float euclideanDistance(glm::vec3 &v1, glm::vec3 &v2);
+
+void saveViewpointsToFile(std::string &filename, std::vector<glm::mat4> &points);
 
 #endif

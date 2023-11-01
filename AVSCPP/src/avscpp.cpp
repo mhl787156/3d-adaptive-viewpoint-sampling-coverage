@@ -414,24 +414,37 @@ std::vector<glm::vec3>& CoveragePlanner::getSeenpoints(float res){
 void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPositions) {
     
     printf("Performing Lin-Kernighan heuristic for solving TSP around Viewpoints\n");
-    std::vector<glm::vec3> viewpointPositions;
+    std::vector<glm::vec3> uniqueViewpointPositions;
     for(glm::mat4 vp : viewpoints) {
-        viewpointPositions.push_back(glm::vec3(vp[3]));
+        glm::vec3 pt = glm::vec3(vp[3]);
+        bool unique = true;
+        for(glm::vec3 uniquepos : uniqueViewpointPositions){
+            if(glm::length2(pt - uniquepos) < 0.0001 ) {
+                unique = false; break; // If point is same as another previous point.
+            }
+        }
+        if(unique) {
+            printf("Added viewpoint: %f, %f, %f\n", pt[0], pt[1], pt[2]);
+            uniqueViewpointPositions.push_back(pt);
+        }
     }
     
     std::vector<GLfloat> weights;
-    for(int i = 0; i < viewpoints.size(); i++) {
-        glm::vec3 p1 = viewpointPositions[i];
+    for(int i = 0; i < uniqueViewpointPositions.size(); i++) {
+        glm::vec3 p1 = uniqueViewpointPositions[i];
         octomap::point3d p1o(p1.x, p1.y, p1.z);
         for(int j = 0; j < i; j++) {
-            glm::vec3 p2 = viewpointPositions[j];
+            glm::vec3 p2 = uniqueViewpointPositions[j];
             octomap::point3d p2o(p2.x, p2.y, p2.z);
 
             if(p1 != p2) {
                 float dist = euclideanDistance(p1, p2);
                 octomap::point3d dir = p2o - p1o;
                 octomap::point3d isect;
+                // printf("p1: %f, %f, %f\n", p1.x, p1.y, p1.z);
+                // printf("dir: %f, %f, %f\n", dir.x(), dir.y(), dir.z());
                 bool intersectsCell = objectOctree->castRay(p1o, dir, isect, true, dist);
+                // printf("isect: %f, %f, %f\n", isect.x(), isect.y(), isect.z());
                 if(intersectsCell) {
                     // If intersects cell, set to large weight
                     weights.push_back(10000.0f);
@@ -439,14 +452,14 @@ void CoveragePlanner::calculateLKHTrajectories(std::vector<glm::vec3> initialPos
                     weights.push_back(dist);
                 }            
             } else {
-                weights.push_back(0.0);
+                weights.push_back(0.0f);
             }
         }
     }
 
     // Perform LKH on viewpoints
     AVSCPP::LKHSolver lkh;
-    trajectory = lkh.solve(viewpointPositions, weights);
+    trajectory = lkh.solve(uniqueViewpointPositions, weights);
     printf("Trajectory: ");
     // if(debug) {
         for(GLint k: trajectory){
