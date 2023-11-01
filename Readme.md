@@ -1,3 +1,27 @@
+# ADAPTIVE VIEWPOINT COVERAGE
+
+This project is an adaptation of the below project opengl project for Mickey Li's masters dissertation and as part of his PhD. 
+
+![aeroplane_scan](aeroplane_scan.png)
+
+In this project we attempt to implement 3d adaptive viewpoint coverage which solves the following problems:
+
+1. Parsing in a 3D model
+2. Finding a set of viewpoints to use as waypoints for a coverage program
+3. Finding a path around the set of viewpoints to perform the coverage
+
+Opengl with PCL and octomap enables the use of GPU to help perform the viewpoint analysis as you can do frustrum culling to work out whether the viewpoint being sampled is looking at the object in an efficient manner. 
+
+The LKH solver is then used to solve a travelling salesman solver on the resulting vertices. 
+
+```bash
+git clone --recursive https://github.com/mhl787156/3d-adaptive-viewpoint-sampling-coverage.git
+mkdir build && cd build
+```
+
+> **NOTE** as of 2023 i am unsure whether this project can still be built due to the dependencies all moving on. 
+
+------------------
 # [Glitter](http://polytonic.github.io/Glitter/)
 ![Screenshot](http://i.imgur.com/MDo2rsy.jpg)
 
